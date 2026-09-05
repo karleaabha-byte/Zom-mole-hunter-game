@@ -1,7 +1,10 @@
-import streamlit as st
 
-from game import GameState, ROOMS
+
+import html
+import streamlit as st
 import case
+
+from game import GameState, TOTAL_BUDGET, ROOMS
 
 
 # ============================================================
@@ -10,13 +13,14 @@ import case
 
 st.set_page_config(
     page_title="Zom-Mole Hunter",
-    page_icon="🕵️",
-    layout="wide"
+    page_icon="🧟",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# CUSTOM CSS
+# NOIR AESTHETIC
 # ============================================================
 
 st.markdown(
@@ -24,57 +28,499 @@ st.markdown(
     <style>
 
     .stApp {
-        background-color: #0b0f0d;
-        color: #e8f5e9;
+        background:
+            linear-gradient(
+                135deg,
+                #1a0f2e 0%,
+                #2d1b4e 50%,
+                #1f1135 100%
+            );
+        color: #e0d5d5;
     }
 
-    .main-title {
-        font-size: 52px;
-        font-weight: 900;
+    body {
+        font-family: Georgia, serif;
+    }
+
+    h1 {
+        color: #d4af37;
+        font-family: monospace;
+        font-size: 2.5rem;
+        text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        letter-spacing: 3px;
+    }
+
+    h2,
+    h3 {
+        color: #f39c12;
+        font-family: monospace;
+        text-shadow: 0 0 8px rgba(243, 156, 18, 0.4);
+    }
+
+    /* ========================================================
+       TABS
+       ======================================================== */
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 6px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background-color: #3d2860;
+        border-radius: 8px 8px 0 0;
+        padding: 10px 18px;
+        color: #c9a961;
+        font-family: monospace;
+        border: 1px solid #5a3d8a;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: #5a3d8a !important;
+        color: #d4af37 !important;
+        border: 1px solid #d4af37;
+    }
+
+    /* ========================================================
+       EXPANDERS
+       ======================================================== */
+
+    div[data-testid="stExpander"] {
+        border: 1px solid #5a3d8a;
+        border-radius: 10px;
+        background-color: #2d1f42;
+    }
+
+    /* ========================================================
+       METRICS
+       ======================================================== */
+
+    div[data-testid="stMetricValue"] {
+        color: #f39c12;
+        font-size: 1.8rem;
+        font-family: monospace;
+    }
+
+    /* ========================================================
+       BUTTONS
+       ======================================================== */
+
+    .stButton > button {
+        background-color: #5a3d8a;
+        color: #d4af37;
+        border-radius: 8px;
+        border: 1.5px solid #d4af37;
+        font-family: monospace;
+        font-weight: bold;
+        box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+        transition: all 0.2s ease;
+    }
+
+    .stButton > button:hover {
+        background-color: #d4af37;
+        color: #1a0f2e;
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.8);
+    }
+
+    /* ========================================================
+       CASE FILE
+       ======================================================== */
+
+    .case-file {
+        background: rgba(45, 31, 66, 0.85);
+        border: 1px solid #5a3d8a;
+        border-left: 4px solid #d4af37;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: 0 5px 25px rgba(0, 0, 0, 0.35);
+    }
+
+    /* ========================================================
+       BACKGROUND
+       ======================================================== */
+
+    .background-section {
+        background: #2d1f42;
+        border: 1px solid #5a3d8a;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 12px 0;
+        font-family: monospace;
+    }
+
+    .background-title {
+        color: #d4af37;
+        font-weight: bold;
+        margin-bottom: 12px;
+        font-size: 1rem;
+        letter-spacing: 1px;
+    }
+
+    .background-entry {
+        color: #c9a961;
+        padding: 8px 0;
+        border-bottom: 1px dotted #5a3d8a;
+        line-height: 1.5;
+    }
+
+    /* ========================================================
+       START SCREEN
+       ======================================================== */
+
+    .game-title-main {
+        color: #d4af37;
+        font-family: monospace;
+        font-size: 3.2rem;
+        font-weight: bold;
+        letter-spacing: 6px;
         text-align: center;
-        margin-bottom: 0;
+        text-shadow:
+            0 0 10px rgba(212, 175, 55, 0.5),
+            0 0 25px rgba(212, 175, 55, 0.2);
+        padding-top: 35px;
     }
 
-    .subtitle {
+    .game-title-sub {
+        color: #c9a961;
+        font-family: monospace;
+        font-size: 1rem;
+        letter-spacing: 3px;
         text-align: center;
-        font-size: 18px;
-        opacity: 0.75;
-        margin-bottom: 30px;
+        margin-top: 8px;
+        margin-bottom: 25px;
     }
 
-    .danger {
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #8b0000;
-        background-color: #210909;
+    .opening-story {
+        background: rgba(26, 16, 36, 0.92);
+        border: 1px solid #5a3d8a;
+        border-left: 4px solid #d4af37;
+        border-radius: 8px;
+        padding: 30px;
+        margin: 20px 0;
+        line-height: 1.8;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     }
 
-    .success {
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #176b35;
-        background-color: #092313;
+    .opening-label {
+        color: #d4af37;
+        font-family: monospace;
+        font-weight: bold;
+        letter-spacing: 2px;
+        margin-bottom: 15px;
     }
 
-    .evidence-box {
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #555;
-        background-color: #151917;
+    .opening-warning {
+        color: #f39c12;
+        font-family: monospace;
+        font-weight: bold;
+        border-top: 1px solid #5a3d8a;
+        border-bottom: 1px solid #5a3d8a;
+        padding: 15px 0;
+        margin: 18px 0;
+        text-align: center;
+        letter-spacing: 1px;
+    }
+
+    /* ========================================================
+       UNLOCKED ACCESS
+       ======================================================== */
+
+    .unlock-box {
+        background: #21152d;
+        border: 2px solid #d4af37;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
+    }
+
+    .unlock-title {
+        color: #d4af37;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+    }
+
+    /* ========================================================
+       LOCKED INTERROGATION
+       ======================================================== */
+
+    .locked-box {
+        background: #21152d;
+        border: 1px solid #705d7d;
+        border-left: 4px solid #725b7b;
+        border-radius: 8px;
+        padding: 25px;
+        margin: 20px 0;
+        text-align: center;
+    }
+
+    .locked-title {
+        color: #c9a961;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 1.2rem;
+        letter-spacing: 1px;
+    }
+
+    /* ========================================================
+       SECURITY CHALLENGE
+       ======================================================== */
+
+    .security-box {
+        background: #21152d;
+        border: 2px solid #d4af37;
+        border-left: 5px solid #f39c12;
+        border-radius: 8px;
+        padding: 28px;
+        margin: 20px 0;
+        text-align: center;
+        box-shadow:
+            0 0 20px rgba(212, 175, 55, 0.12),
+            0 5px 25px rgba(0, 0, 0, 0.35);
+    }
+
+    .security-title {
+        color: #d4af37;
+        font-family: monospace;
+        font-size: 1.35rem;
+        font-weight: bold;
+        letter-spacing: 2px;
         margin-bottom: 10px;
     }
+
+    .security-warning {
+        color: #f39c12;
+        font-family: monospace;
+        font-weight: bold;
+        letter-spacing: 1px;
+        margin: 12px 0;
+    }
+
+    .security-word {
+        color: #d4af37;
+        font-family: monospace;
+        font-size: 1.8rem;
+        font-weight: bold;
+        letter-spacing: 7px;
+        margin: 20px 0;
+    }
+
+    .security-attempt {
+        color: #c9a961;
+        font-family: monospace;
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
+
+    /* ========================================================
+       LAB NOTE
+       ======================================================== */
+
+    .note-card {
+        background: #f4ecd8;
+        color: #3a3226;
+        font-family: Georgia, serif;
+        padding: 25px;
+        border-radius: 2px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+        transform: rotate(-1deg);
+        margin: 14px 4px;
+        line-height: 1.9;
+        font-size: 1.05rem;
+    }
+
+    .note-line {
+        margin: 7px 0;
+    }
+
+    /* ========================================================
+       STORAGE RIDDLE
+       ======================================================== */
+
+    .riddle-board {
+        background-color: #10151f;
+        background-image:
+            linear-gradient(
+                #1c2434 1px,
+                transparent 1px
+            ),
+            linear-gradient(
+                90deg,
+                #1c2434 1px,
+                transparent 1px
+            );
+        background-size: 22px 22px;
+        color: #e5e7eb;
+        font-family: Georgia, serif;
+        font-size: 1.1rem;
+        padding: 24px;
+        border-radius: 8px;
+        border: 2px solid #334155;
+        line-height: 1.8;
+        margin: 14px 4px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+    }
+
+    .riddle-line {
+        margin: 5px 0;
+    }
+
+    .riddle-question {
+        color: #f1f5f9;
+        font-style: italic;
+        margin-top: 14px;
+    }
+
+    /* ========================================================
+       RECEIPT
+       ======================================================== */
+
+    .receipt {
+        background: #fdfdfd;
+        color: #111;
+        font-family: "Courier New", monospace;
+        padding: 20px;
+        border: 1px dashed #777;
+        max-width: 340px;
+        margin: 14px auto;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+    }
+
+    .receipt-title {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 12px;
+        border-bottom: 1px dashed #777;
+        padding-bottom: 8px;
+    }
+
+    .pin-display {
+        margin-top: 12px;
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .pin-digit {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 34px;
+        margin: 0 3px;
+        border-bottom: 2px solid #333;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+
+    .pin-redacted {
+        color: #999;
+    }
+
+    /* ========================================================
+       STATEMENTS
+       ======================================================== */
+
+    .statement-card {
+        background: #241936;
+        border-left: 4px solid #d4af37;
+        border-radius: 6px;
+        padding: 16px;
+        margin: 12px 0;
+    }
+
+    .statement-character {
+        color: #d4af37;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .statement-question {
+        color: #9d8ca8;
+        font-size: 0.85rem;
+        margin-top: 8px;
+    }
+
+    .statement-answer {
+        color: #f0e7d8;
+        font-family: Georgia, serif;
+        font-size: 1.15rem;
+        line-height: 1.5;
+        margin-top: 8px;
+    }
+
+    /* ========================================================
+       SUSPECT
+       ======================================================== */
 
     .suspect-card {
+        background: #3d2860;
+        border-left: 4px solid #f39c12;
         padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #444;
-        background-color: #111513;
-        margin-bottom: 10px;
+        margin: 8px 0;
+        border-radius: 4px;
+    }
+
+    /* ========================================================
+       QUOTE
+       ======================================================== */
+
+    .quote-box {
+        background: #1a1024;
+        border-left: 3px solid #d4af37;
+        padding: 18px;
+        margin: 12px 0;
+        font-family: Georgia, serif;
+        font-size: 1.2rem;
+        line-height: 1.5;
+        color: #f0e7d8;
+    }
+
+    /* ========================================================
+       LOG
+       ======================================================== */
+
+    .log-entry {
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: #c9a961;
+        padding: 5px 0;
+        border-bottom: 1px dotted #5a3d8a;
+    }
+
+    /* ========================================================
+       CLUE CHIP
+       ======================================================== */
+
+    .clue-chip {
+        display: inline-block;
+        padding: 7px 12px;
+        margin: 4px;
+        border: 1px solid #725b7b;
+        color: #d8c9dc;
+        background: #201825;
+        font-size: 0.75rem;
+        border-radius: 4px;
+    }
+
+    /* ========================================================
+       FINAL REPORT
+       ======================================================== */
+
+    .verdict-box {
+        background: #21152d;
+        border: 2px solid #d4af37;
+        border-radius: 8px;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 0 25px rgba(212, 175, 55, 0.2);
     }
 
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 
@@ -83,8 +529,19 @@ st.markdown(
 # ============================================================
 
 if "game" not in st.session_state:
-
     st.session_state.game = GameState()
+
+if "detective_name" not in st.session_state:
+    st.session_state.detective_name = ""
+
+if "case_started" not in st.session_state:
+    st.session_state.case_started = False
+
+if "final_evidence_saved" not in st.session_state:
+    st.session_state.final_evidence_saved = []
+
+if "final_reasoning_saved" not in st.session_state:
+    st.session_state.final_reasoning_saved = ""
 
 
 game = st.session_state.game
@@ -94,34 +551,604 @@ game = st.session_state.game
 # HELPER FUNCTIONS
 # ============================================================
 
-def rerun():
-    st.rerun()
+def safe_html(value):
+    return html.escape(str(value))
 
 
-def show_message(success, message):
+def get_profile(character):
 
-    if success:
-        st.success(message)
+    profiles = getattr(case, "PROFILES", {})
+
+    if isinstance(profiles, dict):
+        return profiles.get(character, {})
+
+    return {}
+
+
+def get_question_text(question_key):
+
+    questions = getattr(case, "QUESTION_BANK", {})
+
+    if isinstance(questions, dict):
+        return questions.get(
+            question_key,
+            question_key
+        )
+
+    return str(question_key)
+
+
+def get_statement_data(character):
+
+    statements = getattr(
+        game.evidence,
+        "suspect_statements",
+        {}
+    )
+
+    if not isinstance(statements, dict):
+        return {}
+
+    value = statements.get(
+        character,
+        {}
+    )
+
+    if isinstance(value, dict):
+        return value
+
+    return {}
+
+
+def statement_count():
+
+    total = 0
+
+    statements = getattr(
+        game.evidence,
+        "suspect_statements",
+        {}
+    )
+
+    if not isinstance(statements, dict):
+        return 0
+
+    for value in statements.values():
+
+        if isinstance(value, dict):
+            total += len(value)
+
+        elif value:
+            total += 1
+
+    return total
+
+
+# ============================================================
+# LAB RENDERER
+# ============================================================
+
+def render_lab_note(lines):
+
+    html_output = '<div class="note-card">'
+
+    for item in lines:
+
+        if isinstance(item, str):
+
+            text = item
+
+        elif (
+            isinstance(item, (list, tuple))
+            and len(item) >= 2
+        ):
+
+            text = f"{item[0]}{item[1]}"
+
+        elif isinstance(item, dict):
+
+            text = item.get(
+                "text",
+                item.get("content", "")
+            )
+
+            if item.get("letter"):
+                text = (
+                    f'{item["letter"]}'
+                    f'{text}'
+                )
+
+        else:
+
+            text = str(item)
+
+        html_output += (
+            '<div class="note-line">'
+            f'{safe_html(text)}'
+            '</div>'
+        )
+
+    html_output += "</div>"
+
+    st.html(html_output)
+
+
+# ============================================================
+# STORAGE RIDDLE
+# ============================================================
+
+def render_storage_riddle(riddle):
+
+    html_output = '<div class="riddle-board">'
+
+    for index, line in enumerate(riddle):
+
+        if index == len(riddle) - 1:
+
+            html_output += (
+                '<div class="riddle-question">'
+                f'{safe_html(line)}'
+                '</div>'
+            )
+
+        else:
+
+            html_output += (
+                '<div class="riddle-line">'
+                f'{safe_html(line)}'
+                '</div>'
+            )
+
+    html_output += "</div>"
+
+    st.html(html_output)
+
+
+# ============================================================
+# CAFETERIA RECEIPT
+# ============================================================
+
+def render_receipt(
+    job,
+    pin_digits,
+    redacted
+):
+
+    if isinstance(
+        pin_digits,
+        (list, tuple)
+    ):
+
+        digits = list(pin_digits)
 
     else:
-        st.error(message)
+
+        digits = list(
+            str(pin_digits)
+        )
+
+
+    if isinstance(
+        redacted,
+        str
+    ):
+
+        redacted_values = [
+            char in ("?", "x", "X", "*")
+            for char in redacted
+        ]
+
+    elif isinstance(
+        redacted,
+        (list, tuple)
+    ):
+
+        redacted_values = list(
+            redacted
+        )
+
+    else:
+
+        redacted_values = []
+
+
+    html_output = (
+        '<div class="receipt">'
+    )
+
+    html_output += (
+        '<div class="receipt-title">'
+        'RESTOCKING LOG — MACHINE #3'
+        '</div>'
+    )
+
+    html_output += (
+        '<div>'
+        'Restocked by: '
+        f'<b>{safe_html(job)}</b>'
+        '</div>'
+    )
+
+    html_output += (
+        '<div class="pin-display">'
+        'Employee PIN: '
+    )
+
+
+    for index, digit in enumerate(
+        digits
+    ):
+
+        is_redacted = (
+            index < len(redacted_values)
+            and bool(
+                redacted_values[index]
+            )
+        )
+
+        if is_redacted:
+
+            html_output += (
+                '<span class="pin-digit '
+                'pin-redacted">'
+                '?'
+                '</span>'
+            )
+
+        else:
+
+            html_output += (
+                '<span class="pin-digit">'
+                f'{safe_html(digit)}'
+                '</span>'
+            )
+
+
+    html_output += "</div>"
+    html_output += "</div>"
+
+    st.html(html_output)
 
 
 # ============================================================
-# HEADER
+# GENERIC CLUE RENDERER
 # ============================================================
 
-st.markdown(
-    '<div class="main-title">🧟 ZOM-MOLE HUNTER</div>',
-    unsafe_allow_html=True
+def render_clue(
+    room,
+    clue
+):
+
+    if not isinstance(clue, dict):
+
+        st.write(clue)
+
+        return
+
+
+    # ========================================================
+    # LABORATORY
+    # ========================================================
+
+    if room == "Laboratory":
+
+        if clue.get("title"):
+
+            st.markdown(
+                f"### "
+                f"{safe_html(clue['title'])}"
+            )
+
+        if clue.get("lines"):
+
+            render_lab_note(
+                clue["lines"]
+            )
+
+        if clue.get("note"):
+
+            st.info(
+                clue["note"]
+            )
+
+        if clue.get("description"):
+
+            st.write(
+                clue["description"]
+            )
+
+
+    # ========================================================
+    # STORAGE
+    # ========================================================
+
+    elif room == "Storage":
+
+        if clue.get("title"):
+
+            st.markdown(
+                f"### "
+                f"{safe_html(clue['title'])}"
+            )
+
+        # ----------------------------------------------------
+        # SABOTAGE WARNING
+        # ----------------------------------------------------
+
+        if "CORRUPTED" in str(
+            clue.get("title", "")
+        ).upper():
+
+            st.warning(
+                "⚠️ The Storage terminal has been "
+                "tampered with. The original riddle "
+                "appears to have been replaced."
+            )
+
+        if clue.get("riddle"):
+
+            render_storage_riddle(
+                clue["riddle"]
+            )
+
+        if clue.get("note"):
+
+            st.info(
+                clue["note"]
+            )
+
+        if clue.get("description"):
+
+            st.write(
+                clue["description"]
+            )
+
+
+    # ========================================================
+    # CAFETERIA
+    # ========================================================
+
+    elif room == "Cafeteria":
+
+        if clue.get("title"):
+
+            st.markdown(
+                f"### "
+                f"{safe_html(clue['title'])}"
+            )
+
+        if all(
+            key in clue
+            for key in (
+                "job",
+                "pin_digits",
+                "redacted"
+            )
+        ):
+
+            render_receipt(
+                clue["job"],
+                clue["pin_digits"],
+                clue["redacted"]
+            )
+
+        if clue.get("note"):
+
+            st.info(
+                clue["note"]
+            )
+
+        if clue.get("description"):
+
+            st.write(
+                clue["description"]
+            )
+
+
+# ============================================================
+# RESET CASE
+# ============================================================
+
+def reset_case():
+
+    st.session_state.game = GameState()
+
+    st.session_state.detective_name = ""
+
+    st.session_state.case_started = False
+
+    st.session_state.final_evidence_saved = []
+
+    st.session_state.final_reasoning_saved = ""
+
+    keys_to_remove = [
+        "final_reasoning",
+        "final_suspect",
+        "final_evidence",
+        "pin_guess",
+        "start_detective_name",
+        "wordle_guess",
+    ]
+
+    for key in keys_to_remove:
+
+        if key in st.session_state:
+
+            del st.session_state[key]
+
+
+# ============================================================
+# OPENING SCREEN
+# ============================================================
+
+if not st.session_state.case_started:
+
+    st.html(
+        """
+        <div class="game-title-main">
+            🧟 ZOM-MOLE HUNTER
+        </div>
+
+        <div class="game-title-sub">
+            A NOIR DETECTIVE INVESTIGATION
+        </div>
+        """
+    )
+
+
+    st.html(
+        """
+        <div class="opening-story">
+
+            <div class="opening-label">
+                📁 CASE FILE
+            </div>
+
+            <div class="opening-label">
+                CLASSIFIED — NIGHT SHIFT INVESTIGATION
+            </div>
+
+            <h2>
+                THE NIGHT SHIFT INCIDENT
+            </h2>
+
+            <p>
+                <b>12:18 AM.</b>
+            </p>
+
+            <p>
+                The research facility should have been asleep.
+            </p>
+
+            <p>
+                Instead, emergency lights are flashing,
+                a laboratory alarm is screaming through the
+                corridors, and six experimental filter
+                cartridges have disappeared from Storage.
+            </p>
+
+            <p>
+                At first, security believed it was an
+                equipment failure.
+            </p>
+
+            <p>
+                Then they found the broken vial.
+            </p>
+
+            <p>
+                Then the ventilation panel.
+            </p>
+
+            <p>
+                Then someone noticed that three minutes of
+                corridor camera footage had vanished.
+            </p>
+
+            <div class="opening-warning">
+                FIVE PEOPLE WERE STILL INSIDE THE FACILITY.
+            </div>
+
+            <p>
+                One of them is lying.
+            </p>
+
+            <p>
+                Possibly more than one.
+            </p>
+
+            <p>
+                But finding a liar is not enough.
+                You need to determine which lie actually
+                connects to the missing materials.
+            </p>
+
+            <p>
+                You have <b>12 actions</b> before the
+                investigation window closes.
+            </p>
+
+            <p>
+                Search the rooms. Examine the evidence.
+                Crack the restricted access PIN.
+                Interrogate the employees.
+                Then decide who is the Mole.
+            </p>
+
+        </div>
+        """
+    )
+
+
+    st.write("")
+
+
+    st.html(
+        """
+        <div
+            style="
+                color:#d4af37;
+                font-family:monospace;
+                font-weight:bold;
+                font-size:1.15rem;
+                letter-spacing:2px;
+                margin-top:25px;
+                margin-bottom:12px;
+            "
+        >
+            🕵️ IDENTIFY YOURSELF
+        </div>
+        """
+    )
+
+
+    detective_name = st.text_input(
+        "Enter your detective name",
+        placeholder="e.g. Detective Morgan",
+        key="start_detective_name",
+    )
+
+
+    st.write("")
+
+
+    if st.button(
+        "🔎 ENTER THE CASE",
+        use_container_width=True,
+    ):
+
+        if not detective_name.strip():
+
+            st.warning(
+                "Enter your detective name before beginning."
+            )
+
+        else:
+
+            st.session_state.detective_name = (
+                detective_name.strip()
+            )
+
+            st.session_state.case_started = True
+
+            st.rerun()
+
+
+    st.stop()
+
+
+# ============================================================
+# GAME TITLE
+# ============================================================
+
+st.title(
+    "🧟 ZOM-MOLE HUNTER"
 )
 
-st.markdown(
-    '<div class="subtitle">'
-    "A suspicious employee. A contaminated facility. "
-    "One mole. Find them before you run out of time."
-    "</div>",
-    unsafe_allow_html=True
+st.caption(
+    f"Detective Case File: "
+    f"{st.session_state.detective_name} | "
+    f"{game.actions_remaining} Actions Remaining"
 )
 
 
@@ -131,77 +1158,167 @@ st.markdown(
 
 with st.sidebar:
 
-    st.header("📊 CASE STATUS")
+    st.header(
+        "CASE DOSSIER"
+    )
+
+    st.write(
+        f"**Detective:** "
+        f"{st.session_state.detective_name}"
+    )
+
+    st.divider()
+
+    st.subheader(
+        "Actions Remaining"
+    )
 
     st.metric(
-        "ACTIONS REMAINING",
+        "",
         game.actions_remaining
     )
 
-    st.metric(
-        "SUSPICION",
-        game.suspicion
+    progress = (
+        game.actions_used / TOTAL_BUDGET
+        if TOTAL_BUDGET > 0
+        else 0
+    )
+
+    progress = max(
+        0.0,
+        min(1.0, progress)
+    )
+
+    st.progress(
+        progress
+    )
+
+    st.caption(
+        f"{game.actions_used} of "
+        f"{TOTAL_BUDGET} actions used"
     )
 
     st.divider()
 
-    st.subheader("🔐 SECURITY")
+    st.subheader(
+        "Investigation"
+    )
 
-    if game.pin_cracked:
+    st.write(
+        f"🏚️ Scenes searched: "
+        f"**{len(game.visited_rooms)}/{len(ROOMS)}**"
+    )
 
-        st.success("PIN CRACKED")
+    st.write(
+        f"🗣️ Statements collected: "
+        f"**{statement_count()}**"
+    )
 
-    else:
+    st.write(
+        f"🔎 Physical clues: "
+        f"**{len(game.evidence.clues_found)}**"
+    )
 
-        st.warning("PIN LOCKED")
 
+    # ========================================================
+    # SECURITY STATUS
+    # ========================================================
 
-    if game.security_challenge_active:
+    if not game.pin_cracked:
 
-        st.warning("SECONDARY LOCK ACTIVE")
+        st.warning(
+            "🔒 Interrogations locked"
+        )
 
-    elif game.security_challenge_complete:
+    elif game.security_challenge_active:
 
-        st.success("SECONDARY LOCK CLEARED")
+        st.error(
+            "🔐 Security challenge active"
+        )
 
     elif game.wordle_failed:
 
-        st.error("SECURITY FAILED")
+        st.error(
+            "🔐 Interrogation access blocked"
+        )
+
+    else:
+
+        st.success(
+            "🔓 Interrogations unlocked"
+        )
 
 
     st.divider()
 
-    st.subheader("🏢 ROOMS")
 
-    for room in ROOMS:
+    # ========================================================
+    # CASE LOG
+    # ========================================================
 
-        if room in game.visited_rooms:
+    with st.expander(
+        "📋 CASE LOG"
+    ):
 
-            st.write(
-                f"✅ {room}"
-            )
+        if game.log:
+
+            for entry in reversed(
+                game.log[-10:]
+            ):
+
+                st.html(
+                    '<div class="log-entry">'
+                    f'• {safe_html(entry)}'
+                    '</div>'
+                )
 
         else:
 
             st.write(
-                f"⬜ {room}"
+                "*No entries yet.*"
             )
 
 
     st.divider()
 
+
     if st.button(
-        "🔄 RESTART CASE",
+        "🔄 START NEW CASE",
         use_container_width=True
     ):
 
-        st.session_state.game = GameState()
+        reset_case()
 
         st.rerun()
 
 
 # ============================================================
-# GAME OVER
+# CASE INTRO
+# ============================================================
+
+st.markdown(
+    '<div class="case-file">',
+    unsafe_allow_html=True
+)
+
+case_intro = getattr(
+    case,
+    "CASE_INTRO",
+    "A mysterious incident has occurred."
+)
+
+st.markdown(
+    case_intro
+)
+
+st.markdown(
+    "</div>",
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# END OF GAME
 # ============================================================
 
 if game.game_over:
@@ -210,68 +1327,135 @@ if game.game_over:
 
     if game.result == "win":
 
-        st.markdown(
+        st.html(
             """
-            <div class="success">
-            <h2>🎉 CASE SOLVED</h2>
-            <p>
-            You correctly identified the mole.
-            The facility is safe... for now.
-            </p>
+            <div class="verdict-box">
+
+                <h1>CASE SOLVED</h1>
+
+                <h2>
+                    THE MOLE HAS BEEN IDENTIFIED
+                </h2>
+
+                <p>
+                    Your accusation was correct.
+                    The evidence led you to the right suspect.
+                </p>
+
             </div>
-            """,
-            unsafe_allow_html=True
+            """
         )
 
     else:
 
-        st.markdown(
+        st.html(
             """
-            <div class="danger">
-            <h2>💀 WRONG ACCUSATION</h2>
-            <p>
-            You accused the wrong employee.
-            The real mole got away.
-            </p>
+            <div class="verdict-box">
+
+                <h1>CASE FAILED</h1>
+
+                <h2>
+                    THE MOLE GOT AWAY
+                </h2>
+
+                <p>
+                    Your accusation did not identify the Mole.
+                </p>
+
             </div>
-            """,
-            unsafe_allow_html=True
+            """
         )
 
-    st.subheader("Final Case Report")
+        st.warning(
+            f"The real Mole was **{case.MOLE}**."
+        )
+
+
+    st.divider()
+
+    st.subheader(
+        "INVESTIGATION REPORT"
+    )
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
 
         st.metric(
-            "Accused",
-            game.accused
+            "Actions Used",
+            f"{game.actions_used}/{TOTAL_BUDGET}"
         )
 
     with col2:
 
         st.metric(
-            "Suspicion",
-            game.suspicion
+            "Scenes Searched",
+            len(game.visited_rooms)
         )
 
     with col3:
 
         st.metric(
-            "Actions Used",
-            game.actions_used
+            "Statements",
+            statement_count()
         )
 
 
     st.divider()
 
-    st.subheader("📝 Investigation Log")
+    st.subheader(
+        "Your Accusation"
+    )
 
-    for entry in game.log:
+    st.write(
+        f"**Suspect:** {game.accused}"
+    )
 
-        st.write(
-            f"• {entry}"
+
+    if game.result == "win":
+
+        st.success(
+            "Correct accusation."
+        )
+
+    else:
+
+        st.error(
+            "Incorrect accusation."
+        )
+
+
+    if st.session_state.final_evidence_saved:
+
+        st.divider()
+
+        st.subheader(
+            "Evidence You Selected"
+        )
+
+        for evidence in (
+            st.session_state.final_evidence_saved
+        ):
+
+            st.html(
+                '<span class="clue-chip">'
+                f'✓ {safe_html(evidence)}'
+                '</span>'
+            )
+
+
+    if st.session_state.final_reasoning_saved:
+
+        st.divider()
+
+        st.subheader(
+            "Your Reasoning"
+        )
+
+        st.html(
+            '<div class="quote-box">'
+            f'{safe_html(st.session_state.final_reasoning_saved)}'
+            '</div>'
         )
 
 
@@ -279,749 +1463,1052 @@ if game.game_over:
 
 
 # ============================================================
-# MAIN TABS
+# MAIN GAME TABS
 # ============================================================
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
+(
+    tab_background,
+    tab_rooms,
+    tab_people,
+    tab_accuse,
+) = st.tabs(
     [
-        "🔎 INVESTIGATE",
-        "🔐 SECURITY",
-        "💬 INTERROGATE",
-        "📋 EVIDENCE",
-        "⚖️ ACCUSE"
+        "📋 BACKGROUND",
+        "🏚️ CRIME SCENES",
+        "🗣️ INTERROGATIONS",
+        "⚖️ ACCUSATION",
     ]
 )
 
 
 # ============================================================
-# TAB 1 — INVESTIGATION
+# BACKGROUND TAB
 # ============================================================
 
-with tab1:
+with tab_background:
 
-    st.header("🔎 Investigate the Facility")
+    st.subheader(
+        "THE NIGHT SHIFT INCIDENT"
+    )
 
     st.write(
-        "Search the rooms for clues. "
-        "Every important Zephyr action has an independent 50/50 "
-        "chance of HELP or SABOTAGE."
+        "These are the established facts of the case. "
+        "Pay attention to times, locations and who had "
+        "access to what."
+    )
+
+    background = getattr(
+        case,
+        "BACKGROUND",
+        {}
     )
 
 
-    # --------------------------------------------------------
-    # ROOM BUTTONS
-    # --------------------------------------------------------
+    if isinstance(
+        background,
+        dict
+    ):
 
-    cols = st.columns(3)
+        for section, section_data in background.items():
+
+            html_output = (
+                '<div class="background-section">'
+                '<div class="background-title">'
+                f'{safe_html(section)}'
+                '</div>'
+            )
 
 
-    for index, room in enumerate(ROOMS):
+            if isinstance(
+                section_data,
+                dict
+            ):
 
-        with cols[index]:
+                if "entries" in section_data:
 
-            st.subheader(room)
+                    for entry in section_data["entries"]:
+
+                        if (
+                            isinstance(
+                                entry,
+                                (list, tuple)
+                            )
+                            and len(entry) >= 2
+                        ):
+
+                            label = entry[0]
+                            text = entry[1]
+
+                            html_output += (
+                                '<div class="background-entry">'
+                                f'<strong>{safe_html(label)}</strong>'
+                                '&nbsp; '
+                                f'{safe_html(text)}'
+                                '</div>'
+                            )
+
+                        else:
+
+                            html_output += (
+                                '<div class="background-entry">'
+                                f'{safe_html(entry)}'
+                                '</div>'
+                            )
+
+
+                if "notes" in section_data:
+
+                    for note_text in section_data["notes"]:
+
+                        html_output += (
+                            '<div class="background-entry">'
+                            f'• {safe_html(note_text)}'
+                            '</div>'
+                        )
+
+
+            else:
+
+                html_output += (
+                    '<div class="background-entry">'
+                    f'{safe_html(section_data)}'
+                    '</div>'
+                )
+
+
+            html_output += "</div>"
+
+            st.html(
+                html_output
+            )
+
+
+    else:
+
+        st.write(
+            background
+        )
+
+
+# ============================================================
+# CRIME SCENES
+# ============================================================
+
+with tab_rooms:
+
+    st.subheader(
+        "🏚️ Crime Scenes"
+    )
+
+    st.write(
+        f"You have **{game.actions_remaining} actions** remaining."
+    )
+
+
+    room_descriptions = {
+
+        "Laboratory":
+            "The centrifuge room where the incident began.",
+
+        "Storage":
+            "Shelves, the ventilation system and a strange riddle.",
+
+        "Cafeteria":
+            "A vending machine, a restocking cart "
+            "and one suspicious receipt.",
+    }
+
+
+    cols = st.columns(
+        len(ROOMS)
+    )
+
+
+    for col, room in zip(
+        cols,
+        ROOMS
+    ):
+
+        with col:
+
+            st.markdown(
+                f"### {room}"
+            )
+
+            st.caption(
+                room_descriptions.get(
+                    room,
+                    "A location inside the facility."
+                )
+            )
+
+
+            # =================================================
+            # INVESTIGATED
+            # =================================================
 
             if room in game.visited_rooms:
 
                 st.success(
-                    "Already investigated"
+                    "✓ Location investigated"
                 )
 
                 clue = game.visited_rooms[room]
 
-                st.write(clue)
+                render_clue(
+                    room,
+                    clue
+                )
 
+
+                # =================================================
+                # CAFETERIA PIN
+                # =================================================
+
+                if room == "Cafeteria":
+
+                    st.divider()
+
+                    st.markdown(
+                        "**🔐 Crack the Employee PIN**"
+                    )
+
+
+                    if game.pin_cracked:
+
+                        st.success(
+                            "🔓 PIN CRACKED"
+                        )
+
+
+                        # ----------------------------------------
+                        # SECURITY CHALLENGE ACTIVE
+                        # ----------------------------------------
+
+                        if game.security_challenge_active:
+
+                            st.html(
+                                """
+                                <div class="security-box">
+
+                                    <div class="security-title">
+                                        🔐 SECONDARY SECURITY LOCK
+                                    </div>
+
+                                    <div class="security-warning">
+                                        ADDITIONAL VERIFICATION REQUIRED
+                                    </div>
+
+                                    <p>
+                                        Restricted employee access has
+                                        triggered a secondary security
+                                        protocol.
+                                    </p>
+
+                                    <p>
+                                        <b>
+                                            Interrogation access remains locked.
+                                        </b>
+                                    </p>
+
+                                </div>
+                                """
+                            )
+
+
+                        else:
+
+                            st.html(
+                                """
+                                <div class="unlock-box">
+
+                                    <div class="unlock-title">
+                                        🔓 RESTRICTED ACCESS GRANTED
+                                    </div>
+
+                                    <p>
+                                        The employee record linked to
+                                        the restocking log has been
+                                        unlocked.
+                                    </p>
+
+                                    <p>
+                                        <b>ACCESS RECORD:</b>
+                                        The restocking cycle was initiated
+                                        using an authorized employee
+                                        credential.
+                                    </p>
+
+                                    <p>
+                                        The system confirms that the
+                                        credential belonged to an employee
+                                        scheduled for the night shift.
+                                    </p>
+
+                                    <p>
+                                        <b>
+                                            INTERROGATION SYSTEM: ONLINE
+                                        </b>
+                                    </p>
+
+                                </div>
+                                """
+                            )
+
+
+                    else:
+
+                        pin_guess = st.text_input(
+                            "Enter four digits",
+                            max_chars=4,
+                            key="pin_guess",
+                            disabled=not game.can_act(),
+                        )
+
+
+                        if st.button(
+                            "🔓 VERIFY PIN",
+                            key="verify_pin",
+                            use_container_width=True,
+                            disabled=not game.can_act(),
+                        ):
+
+                            pin_correct = game.attempt_pin(
+                                pin_guess
+                            )
+
+
+                            if pin_correct:
+
+                                st.success(
+                                    "🔓 PIN CRACKED. "
+                                    "Restricted access unlocked."
+                                )
+
+                            else:
+
+                                st.error(
+                                    "❌ Incorrect PIN. "
+                                    "1 action used."
+                                )
+
+                            st.rerun()
+
+
+                        st.caption(
+                            f"Every PIN attempt costs 1 action. "
+                            f"{game.actions_remaining} actions remaining."
+                        )
+
+
+            # =================================================
+            # NOT INVESTIGATED
+            # =================================================
 
             else:
 
                 if st.button(
-                    f"Investigate {room}",
+                    f"🔎 Investigate {room}",
                     key=f"visit_{room}",
                     disabled=not game.can_act(),
-                    use_container_width=True
+                    use_container_width=True,
                 ):
 
-                    success, result = game.visit_room(
-                        room
+                    success, payload = (
+                        game.visit_room(room)
                     )
 
                     if success:
 
-                        st.success(
-                            f"You investigated the {room}."
-                        )
-
-                        st.write(result)
+                        st.rerun()
 
                     else:
 
-                        st.error(result)
-
-                    st.rerun()
-
-
-    # --------------------------------------------------------
-    # SHOW VISITED CLUES
-    # --------------------------------------------------------
-
-    st.divider()
-
-    st.subheader("🗂️ Recovered Clues")
-
-    if not game.visited_rooms:
-
-        st.info(
-            "No clues recovered yet."
-        )
-
-    else:
-
-        for room, clue in game.visited_rooms.items():
-
-            with st.expander(
-                f"📁 {room}"
-            ):
-
-                st.write(clue)
+                        st.warning(
+                            str(payload)
+                        )
 
 
 # ============================================================
-# TAB 2 — SECURITY
+# INTERROGATIONS
 # ============================================================
 
-with tab2:
+with tab_people:
 
-    st.header("🔐 Security System")
-
-
-    # ========================================================
-    # PIN SECTION
-    # ========================================================
-
-    st.subheader("Cafeteria Security PIN")
-
-    if game.pin_cracked:
-
-        st.success(
-            "🔓 PIN 4619 CRACKED"
-        )
-
-        st.write(
-            "Restricted employee records are now accessible."
-        )
-
-    else:
-
-        st.write(
-            "The Cafeteria clue contains a hidden "
-            "4-digit security PIN."
-        )
-
-        pin_guess = st.text_input(
-            "Enter 4-digit PIN",
-            max_chars=4,
-            key="pin_input"
-        )
-
-
-        if st.button(
-            "CRACK PIN",
-            disabled=not game.can_act(),
-            use_container_width=True
-        ):
-
-            if not pin_guess:
-
-                st.warning(
-                    "Enter a PIN first."
-                )
-
-            else:
-
-                correct = game.attempt_pin(
-                    pin_guess
-                )
-
-                if correct:
-
-                    st.success(
-                        "🔓 PIN CRACKED!"
-                    )
-
-                else:
-
-                    st.error(
-                        "❌ Incorrect PIN."
-                    )
-
-                st.rerun()
+    st.subheader(
+        "🗣️ Interrogation Room"
+    )
 
 
     # ========================================================
-    # WORDLE SECURITY CHALLENGE
+    # PIN NOT CRACKED
     # ========================================================
 
-    if game.security_challenge_active:
+    if not game.pin_cracked:
 
-        st.divider()
+        st.html(
+            """
+            <div class="locked-box">
 
-        st.header("🚨 SECONDARY SECURITY LOCK")
+                <div class="locked-title">
+                    🔒 INTERROGATION SYSTEM LOCKED
+                </div>
 
-        st.warning(
-            "Zephyr triggered an additional security challenge."
+                <p>
+                    Employee interrogation records are protected
+                    behind restricted access.
+                </p>
+
+                <p>
+                    You must crack the Cafeteria employee PIN
+                    before you can question anyone.
+                </p>
+
+                <p>
+                    <b>
+                        Locate the Cafeteria and recover the
+                        missing digits.
+                    </b>
+                </p>
+
+            </div>
+            """
         )
 
-        st.write(
-            "Solve the 5-letter Wordle-style challenge "
-            "to unlock interrogation."
+
+    # ========================================================
+    # ZEPHYR SECURITY SABOTAGE
+    # ========================================================
+
+    elif game.security_challenge_active:
+
+        remaining_time = (
+            game.get_wordle_time_remaining()
         )
 
-        st.info(
-            "🟩 Correct letter and position\n\n"
-            "🟨 Correct letter, wrong position\n\n"
-            "⬛ Letter is not in the answer"
+        attempts_used = len(
+            game.wordle_attempts
         )
 
-
-        # ----------------------------------------------------
-        # ATTEMPTS
-        # ----------------------------------------------------
-
-        attempts_left = (
+        attempts_remaining = (
             game.wordle_max_attempts
-            - len(game.wordle_attempts)
+            - attempts_used
         )
 
 
-        st.metric(
-            "ATTEMPTS REMAINING",
-            attempts_left
+        st.html(
+            f"""
+            <div class="security-box">
+
+                <div class="security-title">
+                    🔐 SECONDARY SECURITY LOCK
+                </div>
+
+                <div class="security-warning">
+                    INTERROGATION ACCESS DENIED
+                </div>
+
+                <p>
+                    The restricted employee system has detected
+                    an additional authentication requirement.
+                </p>
+
+                <p>
+                    Someone has modified the security protocol.
+                </p>
+
+                <p>
+                    Complete the emergency verification challenge
+                    to continue.
+                </p>
+
+                <div class="security-word">
+                    _ _ _ _ _
+                </div>
+
+                <p>
+                    <b>
+                        FIVE-LETTER SECURITY WORD
+                    </b>
+                </p>
+
+            </div>
+            """
         )
 
 
-        # ----------------------------------------------------
+        # ====================================================
+        # CHALLENGE STATUS
+        # ====================================================
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.metric(
+                "TIME REMAINING",
+                f"{remaining_time}s"
+            )
+
+        with col2:
+
+            st.metric(
+                "ATTEMPTS REMAINING",
+                attempts_remaining
+            )
+
+
+        # ====================================================
         # PREVIOUS ATTEMPTS
-        # ----------------------------------------------------
+        # ====================================================
 
         if game.wordle_attempts:
 
-            st.subheader(
-                "Previous Attempts"
+            st.markdown(
+                "### Previous Attempts"
             )
 
             for attempt in game.wordle_attempts:
 
-                feedback = []
+                display = ""
 
-                for i, letter in enumerate(attempt):
+                for index, letter in enumerate(
+                    attempt
+                ):
 
                     if (
-                        i < len(game.wordle_answer)
-                        and letter == game.wordle_answer[i]
+                        index < len(
+                            game.wordle_answer
+                        )
+                        and letter
+                        == game.wordle_answer[index]
                     ):
 
-                        feedback.append("🟩")
+                        display += "🟩"
 
                     elif (
-                        letter in game.wordle_answer
+                        letter
+                        in game.wordle_answer
                     ):
 
-                        feedback.append("🟨")
+                        display += "🟨"
 
                     else:
 
-                        feedback.append("⬛")
-
+                        display += "⬛"
 
                 st.write(
-                    f"`{attempt}`  "
-                    + " ".join(feedback)
+                    f"`{attempt}`  {display}"
                 )
 
 
-        # ----------------------------------------------------
+        # ====================================================
         # WORDLE INPUT
-        # ----------------------------------------------------
+        # ====================================================
 
-        wordle_guess = st.text_input(
+        guess = st.text_input(
             "Enter a 5-letter word",
             max_chars=5,
-            key="wordle_input"
+            key="wordle_guess",
+            placeholder="_____",
         )
 
 
         if st.button(
-            "SUBMIT WORD",
-            use_container_width=True
+            "🔓 SUBMIT SECURITY WORD",
+            key="submit_wordle",
+            use_container_width=True,
         ):
 
-            success, result = game.submit_wordle(
-                wordle_guess
+            success, result = (
+                game.submit_wordle(
+                    guess
+                )
             )
 
 
-            # ------------------------------------------------
-            # INVALID INPUT
-            # ------------------------------------------------
-
-            if not success:
-
-                if result == "ATTEMPTS_EXHAUSTED":
-
-                    st.error(
-                        "🔐 Security challenge failed."
-                    )
-
-                elif isinstance(result, dict):
-
-                    if result["status"] == "FAILED":
-
-                        st.error(
-                            "🔐 Security challenge failed."
-                        )
-
-                    else:
-
-                        st.error(
-                            "Invalid attempt."
-                        )
-
-                else:
-
-                    st.error(
-                        result
-                    )
-
-
-            # ------------------------------------------------
-            # VALID RESULT
-            # ------------------------------------------------
-
-            elif isinstance(result, dict):
-
-                status = result.get(
-                    "status"
-                )
-
-
-                if status == "CORRECT":
-
-                    st.success(
-                        "🔓 SECURITY LOCK DEFEATED!"
-                    )
-
-                    st.write(
-                        "Interrogation access unlocked."
-                    )
-
-
-                elif status == "CONTINUE":
-
-                    st.info(
-                        "Not quite. Keep investigating."
-                    )
-
-
-                elif status == "FAILED":
-
-                    st.error(
-                        "🔐 SECURITY CHALLENGE FAILED."
-                    )
-
-
-            elif result == "ALREADY_COMPLETE":
-
-                st.success(
-                    "Security challenge already completed."
-                )
-
-
-            st.rerun()
-
-
-    # ========================================================
-    # SECURITY COMPLETE
-    # ========================================================
-
-    elif game.security_challenge_complete:
-
-        st.divider()
-
-        st.success(
-            "🔓 ALL SECURITY LOCKS CLEARED"
-        )
-
-        st.write(
-            "You can now interrogate the suspects."
-        )
-
-
-    # ========================================================
-    # SECURITY FAILED
-    # ========================================================
-
-    elif game.wordle_failed:
-
-        st.divider()
-
-        st.error(
-            "🔒 SECURITY SYSTEM LOCKED YOU OUT"
-        )
-
-        st.write(
-            "The secondary security challenge was not completed."
-        )
-
-
-# ============================================================
-# TAB 3 — INTERROGATION
-# ============================================================
-
-with tab3:
-
-    st.header("💬 Interrogation Room")
-
-
-    # --------------------------------------------------------
-    # ACCESS CHECK
-    # --------------------------------------------------------
-
-    if not game.pin_cracked:
-
-        st.warning(
-            "🔒 Crack the Cafeteria PIN before interrogating "
-            "employees."
-        )
-
-    elif game.security_challenge_active:
-
-        st.warning(
-            "🔐 Complete the secondary security challenge "
-            "before interrogating employees."
-        )
-
-    elif game.wordle_failed:
-
-        st.error(
-            "🔒 Interrogation access is blocked."
-        )
-
-    else:
-
-        st.write(
-            "Ask each suspect one question."
-        )
-
-        st.info(
-            "Zephyr independently decides 50/50 whether "
-            "to tell the truth or lie."
-        )
-
-
-        # ----------------------------------------------------
-        # SUSPECTS
-        # ----------------------------------------------------
-
-        for character in case.CHARACTERS:
-
-            st.markdown(
-                f'<div class="suspect-card">'
-                f"<h3>🧑 {character}</h3>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-
-
-            if character in game.asked:
-
-                previous = game.asked[
-                    character
-                ]
-
-                st.success(
-                    "Already questioned."
-                )
-
-                st.write(
-                    f"**Question:** "
-                    f"{previous['question']}"
-                )
-
-                st.write(
-                    f"**Answer:** "
-                    f"{previous['answer']}"
-                )
-
-                continue
-
-
-            question_options = list(
-                case.QUESTION_BANK.keys()
-            )
-
-
-            selected_question = st.selectbox(
-                "Choose a question",
-                question_options,
-                key=f"question_{character}"
-            )
-
-
-            if st.button(
-                f"Question {character}",
-                key=f"ask_{character}",
-                disabled=not game.can_act(),
-                use_container_width=True
+            # -----------------------------------------------
+            # CORRECT
+            # -----------------------------------------------
+
+            if (
+                isinstance(result, dict)
+                and result.get("status")
+                == "CORRECT"
             ):
 
-                success, answer = game.ask_question(
-                    character,
-                    selected_question
+                st.success(
+                    "🔓 SECURITY LOCK DEFEATED."
                 )
 
-
-                if success:
-
-                    st.success(
-                        f"{character}: {answer}"
-                    )
-
-                else:
-
-                    st.error(
-                        answer
-                    )
+                st.balloons()
 
                 st.rerun()
 
 
-# ============================================================
-# TAB 4 — EVIDENCE
-# ============================================================
+            # -----------------------------------------------
+            # CONTINUE
+            # -----------------------------------------------
 
-with tab4:
+            elif (
+                isinstance(result, dict)
+                and result.get("status")
+                == "CONTINUE"
+            ):
 
-    st.header("📋 Evidence Board")
-
-
-    # --------------------------------------------------------
-    # ROOM EVIDENCE
-    # --------------------------------------------------------
-
-    st.subheader("🔎 Physical Evidence")
-
-    if not game.visited_rooms:
-
-        st.info(
-            "Investigate rooms to collect evidence."
-        )
-
-    else:
-
-        for room, clue in game.visited_rooms.items():
-
-            st.markdown(
-                f"""
-                <div class="evidence-box">
-
-                <h4>📍 {room}</h4>
-
-                <p>{clue}</p>
-
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                st.rerun()
 
 
-    # --------------------------------------------------------
-    # INTERROGATION EVIDENCE
-    # --------------------------------------------------------
+            # -----------------------------------------------
+            # FAILED
+            # -----------------------------------------------
 
-    st.subheader("💬 Statements")
+            elif (
+                isinstance(result, dict)
+                and result.get("status")
+                == "FAILED"
+            ):
 
-    if not game.asked:
+                st.error(
+                    "🔐 SECURITY LOCK FAILED. "
+                    "Interrogation access has been blocked."
+                )
 
-        st.info(
-            "No suspect statements recorded."
-        )
-
-    else:
-
-        for character, statement in game.asked.items():
-
-            st.markdown(
-                f"""
-                <div class="evidence-box">
-
-                <h4>🧑 {character}</h4>
-
-                <p>
-                <b>Question:</b>
-                {statement['question']}
-                </p>
-
-                <p>
-                <b>Answer:</b>
-                {statement['answer']}
-                </p>
-
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                st.rerun()
 
 
-    # --------------------------------------------------------
-    # CONTRADICTIONS
-    # --------------------------------------------------------
+            # -----------------------------------------------
+            # TIME EXPIRED
+            # -----------------------------------------------
 
-    st.subheader("🚨 Contradictions")
+            elif result == "TIME_EXPIRED":
 
-    if game.contradiction_flagged:
+                st.error(
+                    "⏰ TIME EXPIRED. "
+                    "The security system locked you out."
+                )
 
-        st.error(
-            game.last_contradiction
-            or "A contradiction was detected."
-        )
-
-    else:
-
-        st.info(
-            "No confirmed contradictions yet."
-        )
+                st.rerun()
 
 
-    # --------------------------------------------------------
-    # AI DECISIONS
-    # --------------------------------------------------------
+            else:
 
-    st.subheader("🤖 Zephyr Activity")
-
-    ai_stats = game.mole_ai.stats()
-
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-
-        st.metric(
-            "Help",
-            ai_stats["help_count"]
-        )
-
-    with col2:
-
-        st.metric(
-            "Sabotage",
-            ai_stats["sabotage_count"]
-        )
-
-    with col3:
-
-        st.metric(
-            "Truth",
-            ai_stats["truth_count"]
-        )
-
-    with col4:
-
-        st.metric(
-            "Lies",
-            ai_stats["lie_count"]
-        )
-
-
-    if ai_stats["decisions_log"]:
-
-        with st.expander(
-            "View Zephyr Decision Log"
-        ):
-
-            for decision in ai_stats[
-                "decisions_log"
-            ]:
-
-                st.write(
-                    f"• {decision}"
+                st.warning(
+                    str(result)
                 )
 
 
-# ============================================================
-# TAB 5 — ACCUSATION
-# ============================================================
-
-with tab5:
-
-    st.header("⚖️ Final Accusation")
-
-    st.write(
-        "When you are confident, accuse the person "
-        "you believe is the mole."
-    )
-
-
-    # --------------------------------------------------------
-    # CURRENT STATUS
-    # --------------------------------------------------------
-
-    if game.accused:
-
-        st.warning(
-            f"You accused {game.accused}."
+        st.caption(
+            "The security timer is enforced by the game engine. "
+            "A successful solution is required to unlock interrogation."
         )
 
 
-    # --------------------------------------------------------
-    # CHARACTER BUTTONS
-    # --------------------------------------------------------
+    # ========================================================
+    # FAILED SECURITY CHALLENGE
+    # ========================================================
 
-    st.subheader(
-        "Who is the mole?"
-    )
+    elif game.wordle_failed:
+
+        st.html(
+            """
+            <div class="locked-box">
+
+                <div class="locked-title">
+                    🔐 INTERROGATION ACCESS BLOCKED
+                </div>
+
+                <p>
+                    The secondary security protocol could not
+                    be defeated.
+                </p>
+
+                <p>
+                    The employee interrogation system remains
+                    inaccessible.
+                </p>
+
+                <p>
+                    <b>
+                        You must rely on the physical evidence,
+                        timeline and case records.
+                    </b>
+                </p>
+
+            </div>
+            """
+        )
 
 
-    cols = st.columns(
-        len(case.CHARACTERS)
-    )
+        st.divider()
+
+        st.info(
+            "The case is still solvable. "
+            "The security sabotage does not remove "
+            "any physical evidence."
+        )
 
 
-    for index, character in enumerate(
-        case.CHARACTERS
-    ):
+    # ========================================================
+    # FULLY UNLOCKED
+    # ========================================================
 
-        with cols[index]:
+    else:
 
-            if st.button(
-                f"⚖️ Accuse {character}",
-                key=f"accuse_{character}",
-                use_container_width=True
+        st.write(
+            "The interrogation system is online. "
+            "Everyone has something to say. "
+            "The trick is figuring out whether it matters."
+        )
+
+
+        question_bank = getattr(
+            case,
+            "QUESTION_BANK",
+            {}
+        )
+
+
+        for character in case.CHARACTERS:
+
+            profile = get_profile(
+                character
+            )
+
+
+            with st.expander(
+                f"🧑 {character} — "
+                f"{profile.get('role', 'Unknown role')}"
             ):
 
-                success, result = game.make_accusation(
+
+                st.html(
+                    '<div class="suspect-card">'
+                    f'<strong>{safe_html(character)}</strong>'
+                    '<br>'
+                    '<span style="color:#c9a961;font-size:.8rem;">'
+                    f'{safe_html(profile.get("role", "Unknown role"))}'
+                    ' • '
+                    f'{safe_html(profile.get("location", "Unknown"))}'
+                    '</span>'
+                    '<br><br>'
+                    f'{safe_html(profile.get("description", ""))}'
+                    '<br><br>'
+                    f'<i>{safe_html(profile.get("personality", ""))}</i>'
+                    '</div>'
+                )
+
+
+                asked_data = game.asked.get(
                     character
                 )
 
 
-                if success:
+                # =================================================
+                # ALREADY QUESTIONED
+                # =================================================
 
-                    st.rerun()
+                if asked_data:
 
-                else:
+                    question_key = asked_data.get(
+                        "question"
+                    )
 
-                    st.error(
-                        result
+                    answer = asked_data.get(
+                        "answer",
+                        ""
                     )
 
 
+                    st.markdown(
+                        "**Statement collected:**"
+                    )
+
+
+                    st.html(
+                        '<div class="statement-card">'
+                        '<div class="statement-question">'
+                        f'Q: {safe_html(get_question_text(question_key))}'
+                        '</div>'
+                        '<div class="statement-answer">'
+                        f'“{safe_html(answer)}”'
+                        '</div>'
+                        '</div>'
+                    )
+
+
+                    # ------------------------------------------------
+                    # Do NOT tell player whether Zephyr lied.
+                    # They must deduce this themselves.
+                    # ------------------------------------------------
+
+                    st.info(
+                        "You have already questioned this person. "
+                        "Study their statement against the evidence."
+                    )
+
+
+                # =================================================
+                # NOT QUESTIONED
+                # =================================================
+
+                else:
+
+                    if (
+                        isinstance(
+                            question_bank,
+                            dict
+                        )
+                        and question_bank
+                    ):
+
+                        question_keys = list(
+                            question_bank.keys()
+                        )
+
+
+                        q_key = st.selectbox(
+                            "Question",
+                            options=question_keys,
+                            format_func=get_question_text,
+                            key=f"question_{character}",
+                        )
+
+
+                        if st.button(
+                            f"💬 Ask {character}",
+                            key=f"ask_{character}",
+                            disabled=not game.can_act(),
+                            use_container_width=True,
+                        ):
+
+                            success, answer = (
+                                game.ask_question(
+                                    character,
+                                    q_key
+                                )
+                            )
+
+
+                            if success:
+
+                                st.rerun()
+
+                            else:
+
+                                st.warning(
+                                    str(answer)
+                                )
+
+
+                    else:
+
+                        st.warning(
+                            "No questions are configured."
+                        )
+
+
 # ============================================================
-# FOOTER
+# ACCUSATION
 # ============================================================
 
-st.divider()
+with tab_accuse:
 
-st.caption(
-    "🧟 Zom-Mole Hunter • "
-    "Investigate carefully. Trust nobody. "
-    "Every Zephyr decision is a 50/50 gamble."
-)
+    st.subheader(
+        "⚖️ Final Accusation"
+    )
+
+    st.warning(
+        "Once you submit an accusation, "
+        "the investigation ends."
+    )
+
+    st.write(
+        "Don't accuse someone simply because they lied. "
+        "Accuse the person whose statements and actions "
+        "connect to the actual incident."
+    )
+
+
+    suspect = st.selectbox(
+        "Who is the Mole?",
+        case.CHARACTERS,
+        key="final_suspect",
+    )
+
+
+    st.divider()
+
+
+    st.subheader(
+        "What convinced you?"
+    )
+
+
+    evidence_options = []
+
+
+    clue_labels = {
+
+        "lab_acrostic":
+            "🧪 Laboratory note",
+
+        "storage_riddle":
+            "📦 Storage riddle",
+
+        "cafeteria_pin":
+            "🥤 Cafeteria restocking receipt",
+    }
+
+
+    # ========================================================
+    # PHYSICAL CLUES
+    # ========================================================
+
+    for clue in getattr(
+        game.evidence,
+        "clues_found",
+        []
+    ):
+
+        label = clue_labels.get(
+            clue,
+            str(clue)
+        )
+
+        if label not in evidence_options:
+
+            evidence_options.append(
+                label
+            )
+
+
+    # ========================================================
+    # STATEMENTS
+    # ========================================================
+
+    for character in case.CHARACTERS:
+
+        statements = get_statement_data(
+            character
+        )
+
+
+        for question_key in statements:
+
+            label = (
+                f"🗣️ {character}: "
+                f"{get_question_text(question_key)}"
+            )
+
+
+            if label not in evidence_options:
+
+                evidence_options.append(
+                    label
+                )
+
+
+    if evidence_options:
+
+        selected_evidence = st.multiselect(
+            "Select the clues/statements "
+            "that support your accusation",
+            evidence_options,
+            key="final_evidence",
+        )
+
+    else:
+
+        selected_evidence = []
+
+        st.info(
+            "You haven't collected any evidence yet."
+        )
+
+
+    st.divider()
+
+
+    st.subheader(
+        "Your Reasoning"
+    )
+
+
+    reasoning = st.text_area(
+        "Build your case",
+        placeholder=(
+            "Explain why the evidence points to this person..."
+        ),
+        height=180,
+        key="final_reasoning",
+    )
+
+
+    st.divider()
+
+
+    if st.button(
+        "🔨 SUBMIT FINAL ACCUSATION",
+        type="primary",
+        use_container_width=True,
+        disabled=not game.can_act(),
+    ):
+
+        if not selected_evidence:
+
+            st.error(
+                "A detective needs evidence. "
+                "Select at least one piece of evidence."
+            )
+
+        elif not reasoning.strip():
+
+            st.error(
+                "Explain your reasoning before "
+                "closing the case."
+            )
+
+        else:
+
+            st.session_state.final_evidence_saved = (
+                selected_evidence.copy()
+            )
+
+            st.session_state.final_reasoning_saved = (
+                reasoning.strip()
+            )
+
+
+            success, result = (
+                game.make_accusation(
+                    suspect
+                )
+            )
+
+
+            if success:
+
+                st.rerun()
+
+            else:
+
+                st.error(
+                    str(result)
+                )
+
+
+# ============================================================
+# OUT OF ACTIONS
+# ============================================================
+
+if (
+    game.actions_remaining == 0
+    and not game.game_over
+):
+
+    st.error(
+        "⏰ You have used all 12 actions. "
+        "The facility is running out of time. "
+        "Make your final accusation."
+    )
