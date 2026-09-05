@@ -1,6 +1,3 @@
-
-
-import time
 import case
 
 from ai_agent import MoleAI
@@ -21,7 +18,6 @@ TOTAL_BUDGET = 12
 
 WORDLE_ANSWER = "VENTS"
 WORDLE_MAX_ATTEMPTS = 6
-WORDLE_TIME_LIMIT = 45
 
 
 # ============================================================
@@ -95,10 +91,6 @@ class GameState:
         self.wordle_attempts = []
 
         self.wordle_max_attempts = WORDLE_MAX_ATTEMPTS
-
-        self.wordle_time_limit = WORDLE_TIME_LIMIT
-
-        self.wordle_started_at = None
 
         self.wordle_failed = False
 
@@ -219,7 +211,9 @@ class GameState:
                     "was left intact."
                 )
 
-            self.evidence.add_clue("storage_riddle")
+            self.evidence.add_clue(
+                "storage_riddle"
+            )
 
 
         # ====================================================
@@ -237,22 +231,31 @@ class GameState:
                 self.actions_remaining
             )
 
-            clue = case.get_cafeteria_clue(decision)
+            clue = case.get_cafeteria_clue(
+                decision
+            )
+
             self.room_decisions[room] = decision
 
             if decision == "sabotage":
+
                 self._log(
                     "⚠️ Zephyr sabotaged the Cafeteria receipt, "
                     "but the useful PIN fragment survived."
                 )
+
                 self.suspicion += 3
+
             else:
+
                 self._log(
                     "🥤 Zephyr helped. The Cafeteria receipt "
                     "was left intact."
                 )
 
-            self.evidence.add_clue("cafeteria_pin")
+            self.evidence.add_clue(
+                "cafeteria_pin"
+            )
 
 
         # ----------------------------------------------------
@@ -347,8 +350,6 @@ class GameState:
 
                 self.security_challenge_complete = False
 
-                self.wordle_started_at = time.time()
-
                 self._log(
                     "🚨 SECONDARY SECURITY LOCK ACTIVATED."
                 )
@@ -400,32 +401,6 @@ class GameState:
             return (
                 False,
                 "No security challenge is active."
-            )
-
-
-        # ----------------------------------------------------
-        # TIME CHECK
-        # ----------------------------------------------------
-
-        elapsed = (
-            time.time()
-            - self.wordle_started_at
-        )
-
-        if elapsed >= self.wordle_time_limit:
-
-            self.security_challenge_active = False
-
-            self.wordle_failed = True
-
-            self._log(
-                "⏰ SECURITY CHALLENGE FAILED: "
-                "Time expired."
-            )
-
-            return (
-                False,
-                "TIME_EXPIRED"
             )
 
 
@@ -535,7 +510,9 @@ class GameState:
                 True,
                 {
                     "status": "CORRECT",
+
                     "result": result,
+
                     "attempts_remaining": (
                         self.wordle_max_attempts
                         - len(self.wordle_attempts)
@@ -565,7 +542,9 @@ class GameState:
                 False,
                 {
                     "status": "FAILED",
+
                     "result": result,
+
                     "attempts_remaining": 0
                 }
             )
@@ -579,42 +558,14 @@ class GameState:
             True,
             {
                 "status": "CONTINUE",
+
                 "result": result,
+
                 "attempts_remaining": (
                     self.wordle_max_attempts
                     - len(self.wordle_attempts)
                 )
             }
-        )
-
-
-    # ========================================================
-    # TIME REMAINING FOR WORDLE
-    # ========================================================
-
-    def get_wordle_time_remaining(self):
-
-        if not self.security_challenge_active:
-
-            return 0
-
-        if self.wordle_started_at is None:
-
-            return self.wordle_time_limit
-
-        elapsed = (
-            time.time()
-            - self.wordle_started_at
-        )
-
-        remaining = (
-            self.wordle_time_limit
-            - elapsed
-        )
-
-        return max(
-            0,
-            int(remaining)
         )
 
 
@@ -721,8 +672,10 @@ class GameState:
 
         if character == case.MOLE:
 
-            tell_truth = self.mole_ai.decide_truth_or_lie(
-                self.suspicion
+            tell_truth = (
+                self.mole_ai.decide_truth_or_lie(
+                    self.suspicion
+                )
             )
 
             answer_data = case.get_question(
@@ -731,16 +684,21 @@ class GameState:
             )
 
             if tell_truth:
+
                 answer = answer_data.get(
                     "truth_answer",
                     answer_data["answer"]
                 )
+
                 lied = False
+
             else:
+
                 answer = answer_data.get(
                     "lie_answer",
                     answer_data["answer"]
                 )
+
                 lied = True
 
         else:
@@ -968,9 +926,6 @@ class GameState:
 
             "wordle_attempts":
                 self.wordle_attempts,
-
-            "wordle_time_remaining":
-                self.get_wordle_time_remaining(),
 
             "wordle_failed":
                 self.wordle_failed,
