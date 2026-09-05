@@ -47,6 +47,10 @@ class GameState:
         # ACTION / GAME STATE
         # ----------------------------------------------------
 
+        # Actions are unlimited.
+        # We keep track of how many the player has used
+        # for the final case report/statistics.
+
         self.actions_used = 0
 
         self.suspicion = 10
@@ -95,8 +99,6 @@ class GameState:
 
         self.wordle_max_attempts = WORDLE_MAX_ATTEMPTS
 
-
-
         self.wordle_failed = False
 
 
@@ -104,18 +106,9 @@ class GameState:
     # ACTIONS
     # ========================================================
 
-    @property
-    def actions_remaining(self):
-
-        return TOTAL_BUDGET - self.actions_used
-
-
     def can_act(self):
 
-        return (
-            not self.game_over
-            and self.actions_remaining > 0
-        )
+        return not self.game_over
 
 
     def _log(self, text):
@@ -144,7 +137,7 @@ class GameState:
 
             return (
                 False,
-                "No actions remaining."
+                "The case is already closed."
             )
 
         if room in self.visited_rooms:
@@ -279,7 +272,7 @@ class GameState:
             return False
 
         # ----------------------------------------------------
-        # EVERY ATTEMPT COSTS ONE ACTION
+        # EVERY ATTEMPT IS TRACKED
         # ----------------------------------------------------
 
         self.actions_used += 1
@@ -319,8 +312,7 @@ class GameState:
 
             activate_challenge = (
                 self.mole_ai.decide_extra_challenge(
-                    self.suspicion,
-                    self.actions_remaining
+                    self.suspicion
                 )
             )
 
@@ -330,7 +322,6 @@ class GameState:
                 self.security_challenge_active = True
 
                 self.security_challenge_complete = False
-
 
                 self._log(
                     "🚨 SECONDARY SECURITY LOCK ACTIVATED."
@@ -545,7 +536,6 @@ class GameState:
         )
 
 
-
     # ========================================================
     # INTERROGATION
     # ========================================================
@@ -603,7 +593,7 @@ class GameState:
 
             return (
                 False,
-                "No actions remaining."
+                "The case is already closed."
             )
 
 
@@ -740,7 +730,7 @@ class GameState:
 
 
         # ----------------------------------------------------
-        # CONSUME ACTION
+        # TRACK ACTION
         # ----------------------------------------------------
 
         self.actions_used += 1
@@ -816,8 +806,6 @@ class GameState:
 
         self.accused = character
 
-        self.actions_used = TOTAL_BUDGET
-
         self.game_over = True
 
 
@@ -852,9 +840,6 @@ class GameState:
 
             "actions_used":
                 self.actions_used,
-
-            "actions_remaining":
-                self.actions_remaining,
 
             "suspicion":
                 self.suspicion,
