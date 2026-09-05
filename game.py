@@ -1,3 +1,4 @@
+"""
 Game state and rules engine for Zom-Mole Hunter
 """
 
