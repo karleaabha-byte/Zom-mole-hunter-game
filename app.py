@@ -2,7 +2,7 @@ import html
 import streamlit as st
 import case
 
-from game import GameState, TOTAL_BUDGET, ROOMS
+from game import GameState, ROOMS
 
 
 # ============================================================
@@ -869,10 +869,6 @@ def render_clue(
                 f"{safe_html(clue['title'])}"
             )
 
-        # ----------------------------------------------------
-        # SABOTAGE WARNING
-        # ----------------------------------------------------
-
         if "CORRUPTED" in str(
             clue.get("title", "")
         ).upper():
@@ -1062,11 +1058,6 @@ if not st.session_state.case_started:
             </p>
 
             <p>
-                You have <b>12 actions</b> before the
-                investigation window closes.
-            </p>
-
-            <p>
                 Search the rooms. Examine the evidence.
                 Crack the restricted access PIN.
                 Interrogate the employees.
@@ -1145,8 +1136,7 @@ st.title(
 
 st.caption(
     f"Detective Case File: "
-    f"{st.session_state.detective_name} | "
-    f"{game.actions_remaining} Actions Remaining"
+    f"{st.session_state.detective_name}"
 )
 
 
@@ -1163,37 +1153,6 @@ with st.sidebar:
     st.write(
         f"**Detective:** "
         f"{st.session_state.detective_name}"
-    )
-
-    st.divider()
-
-    st.subheader(
-        "Actions Remaining"
-    )
-
-    st.metric(
-        "",
-        game.actions_remaining
-    )
-
-    progress = (
-        game.actions_used / TOTAL_BUDGET
-        if TOTAL_BUDGET > 0
-        else 0
-    )
-
-    progress = max(
-        0.0,
-        min(1.0, progress)
-    )
-
-    st.progress(
-        progress
-    )
-
-    st.caption(
-        f"{game.actions_used} of "
-        f"{TOTAL_BUDGET} actions used"
     )
 
     st.divider()
@@ -1381,7 +1340,7 @@ if game.game_over:
 
         st.metric(
             "Actions Used",
-            f"{game.actions_used}/{TOTAL_BUDGET}"
+            game.actions_used
         )
 
     with col2:
@@ -1599,7 +1558,8 @@ with tab_rooms:
     )
 
     st.write(
-        f"You have **{game.actions_remaining} actions** remaining."
+        "Investigate the facility rooms and examine "
+        "whatever evidence you can find."
     )
 
 
@@ -1786,16 +1746,15 @@ with tab_rooms:
                             else:
 
                                 st.error(
-                                    "❌ Incorrect PIN. "
-                                    "1 action used."
+                                    "❌ Incorrect PIN."
                                 )
 
                             st.rerun()
 
 
                         st.caption(
-                            f"Every PIN attempt costs 1 action. "
-                            f"{game.actions_remaining} actions remaining."
+                            "PIN attempts are unlimited. "
+                            "Use the evidence to determine the correct code."
                         )
 
 
@@ -2205,11 +2164,6 @@ with tab_people:
                     )
 
 
-                    # ------------------------------------------------
-                    # Do NOT tell player whether Zephyr lied.
-                    # They must deduce this themselves.
-                    # ------------------------------------------------
-
                     st.info(
                         "You have already questioned this person. "
                         "Study their statement against the evidence."
@@ -2464,19 +2418,3 @@ with tab_accuse:
                 st.error(
                     str(result)
                 )
-
-
-# ============================================================
-# OUT OF ACTIONS
-# ============================================================
-
-if (
-    game.actions_remaining == 0
-    and not game.game_over
-):
-
-    st.error(
-        "⏰ You have used all 12 actions. "
-        "The facility is running out of time. "
-        "Make your final accusation."
-    )
