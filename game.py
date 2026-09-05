@@ -177,12 +177,16 @@ class GameState:
         elif room == "Storage":
 
             # ------------------------------------------------
-            # Zephyr decides whether to sabotage the riddle.
+            # Zephyr uses adversarial search to decide
+            # whether sabotaging the Storage riddle is
+            # strategically better than helping.
             # ------------------------------------------------
 
             sabotage = self.mole_ai.decide_riddle_sabotage(
-                self.suspicion
+                self.suspicion,
+                game_state=self
             )
+
 
             if sabotage:
 
@@ -190,7 +194,9 @@ class GameState:
                     "sabotage"
                 )
 
-                self.room_decisions[room] = "riddle_sabotage"
+                self.room_decisions[room] = (
+                    "riddle_sabotage"
+                )
 
                 self._log(
                     "⚠️ The Storage terminal appears "
@@ -271,6 +277,7 @@ class GameState:
 
             return False
 
+
         # ----------------------------------------------------
         # EVERY ATTEMPT IS TRACKED
         # ----------------------------------------------------
@@ -307,12 +314,13 @@ class GameState:
 
 
             # ------------------------------------------------
-            # ZEPHYR GETS A CHANCE TO SABOTAGE INTERROGATION
+            # ZEPHYR ADVERSARIAL DECISION
             # ------------------------------------------------
 
             activate_challenge = (
                 self.mole_ai.decide_extra_challenge(
-                    self.suspicion
+                    self.suspicion,
+                    game_state=self
                 )
             )
 
@@ -439,7 +447,6 @@ class GameState:
         self.wordle_attempts.append(
             guess
         )
-
 
         answer = self.wordle_answer
 
@@ -641,7 +648,8 @@ class GameState:
 
             tell_truth = (
                 self.mole_ai.decide_truth_or_lie(
-                    self.suspicion
+                    self.suspicion,
+                    game_state=self
                 )
             )
 
