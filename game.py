@@ -18,7 +18,6 @@ ROOMS = [
     "Cafeteria"
 ]
 
-TOTAL_BUDGET = 12
 
 WORDLE_ANSWER = "VENTS"
 WORDLE_MAX_ATTEMPTS = 6
