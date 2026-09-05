@@ -1,5 +1,3 @@
-
-
 import html
 import streamlit as st
 import case
@@ -1882,10 +1880,6 @@ with tab_people:
 
     elif game.security_challenge_active:
 
-        remaining_time = (
-            game.get_wordle_time_remaining()
-        )
-
         attempts_used = len(
             game.wordle_attempts
         )
@@ -1941,21 +1935,10 @@ with tab_people:
         # CHALLENGE STATUS
         # ====================================================
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            st.metric(
-                "TIME REMAINING",
-                f"{remaining_time}s"
-            )
-
-        with col2:
-
-            st.metric(
-                "ATTEMPTS REMAINING",
-                attempts_remaining
-            )
+        st.metric(
+            "ATTEMPTS REMAINING",
+            attempts_remaining
+        )
 
 
         # ====================================================
@@ -2077,20 +2060,6 @@ with tab_people:
                 st.rerun()
 
 
-            # -----------------------------------------------
-            # TIME EXPIRED
-            # -----------------------------------------------
-
-            elif result == "TIME_EXPIRED":
-
-                st.error(
-                    "⏰ TIME EXPIRED. "
-                    "The security system locked you out."
-                )
-
-                st.rerun()
-
-
             else:
 
                 st.warning(
@@ -2099,7 +2068,6 @@ with tab_people:
 
 
         st.caption(
-            "The security timer is enforced by the game engine. "
             "A successful solution is required to unlock interrogation."
         )
 
