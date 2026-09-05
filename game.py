@@ -1,3 +1,6 @@
+Game state and rules engine for Zom-Mole Hunter
+"""
+
 import case
 
 from ai_agent import MoleAI
@@ -92,6 +95,8 @@ class GameState:
 
         self.wordle_max_attempts = WORDLE_MAX_ATTEMPTS
 
+
+
         self.wordle_failed = False
 
 
@@ -179,36 +184,39 @@ class GameState:
         elif room == "Storage":
 
             # ------------------------------------------------
-            # ZEPHYR MAKES ONE INDEPENDENT 50/50 DECISION.
+            # Zephyr decides whether to sabotage the riddle.
             # ------------------------------------------------
 
-            decision = self.mole_ai.decide_room_action(
-                self.suspicion,
-                self.actions_remaining
+            sabotage = self.mole_ai.decide_riddle_sabotage(
+                self.suspicion
             )
 
-            if decision == "sabotage":
+            if sabotage:
 
-                clue = case.get_storage_clue("sabotage")
+                clue = case.get_storage_clue(
+                    "sabotage"
+                )
 
-                self.room_decisions[room] = "sabotage"
+                self.room_decisions[room] = "riddle_sabotage"
 
                 self._log(
-                    "⚠️ Zephyr sabotaged the Storage clue. "
-                    "The harder riddle was left behind."
+                    "⚠️ The Storage terminal appears "
+                    "to have been tampered with."
                 )
 
                 self.suspicion += 3
 
             else:
 
-                clue = case.get_storage_clue("help")
+                clue = case.get_storage_clue(
+                    "help"
+                )
 
                 self.room_decisions[room] = "help"
 
                 self._log(
-                    "📦 Zephyr helped. The normal Storage riddle "
-                    "was left intact."
+                    "📦 The Storage terminal appears "
+                    "undisturbed."
                 )
 
             self.evidence.add_clue(
@@ -222,40 +230,13 @@ class GameState:
 
         else:
 
-            # ------------------------------------------------
-            # ZEPHYR MAKES ANOTHER INDEPENDENT 50/50 DECISION.
-            # ------------------------------------------------
-
-            decision = self.mole_ai.decide_cafeteria_action(
-                self.suspicion,
-                self.actions_remaining
-            )
-
-            clue = case.get_cafeteria_clue(
-                decision
-            )
-
-            self.room_decisions[room] = decision
-
-            if decision == "sabotage":
-
-                self._log(
-                    "⚠️ Zephyr sabotaged the Cafeteria receipt, "
-                    "but the useful PIN fragment survived."
-                )
-
-                self.suspicion += 3
-
-            else:
-
-                self._log(
-                    "🥤 Zephyr helped. The Cafeteria receipt "
-                    "was left intact."
-                )
+            clue = case.get_cafeteria_clue()
 
             self.evidence.add_clue(
                 "cafeteria_pin"
             )
+
+            self.room_decisions[room] = "neutral"
 
 
         # ----------------------------------------------------
@@ -349,6 +330,7 @@ class GameState:
                 self.security_challenge_active = True
 
                 self.security_challenge_complete = False
+
 
                 self._log(
                     "🚨 SECONDARY SECURITY LOCK ACTIVATED."
@@ -510,9 +492,7 @@ class GameState:
                 True,
                 {
                     "status": "CORRECT",
-
                     "result": result,
-
                     "attempts_remaining": (
                         self.wordle_max_attempts
                         - len(self.wordle_attempts)
@@ -542,9 +522,7 @@ class GameState:
                 False,
                 {
                     "status": "FAILED",
-
                     "result": result,
-
                     "attempts_remaining": 0
                 }
             )
@@ -558,15 +536,14 @@ class GameState:
             True,
             {
                 "status": "CONTINUE",
-
                 "result": result,
-
                 "attempts_remaining": (
                     self.wordle_max_attempts
                     - len(self.wordle_attempts)
                 )
             }
         )
+
 
 
     # ========================================================
@@ -683,23 +660,12 @@ class GameState:
                 question_key
             )
 
-            if tell_truth:
+            answer = answer_data["answer"]
 
-                answer = answer_data.get(
-                    "truth_answer",
-                    answer_data["answer"]
-                )
+            # The AI's decision determines how the statement
+            # is treated internally.
 
-                lied = False
-
-            else:
-
-                answer = answer_data.get(
-                    "lie_answer",
-                    answer_data["answer"]
-                )
-
-                lied = True
+            lied = not tell_truth
 
         else:
 
