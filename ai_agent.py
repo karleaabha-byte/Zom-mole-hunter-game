@@ -1,14 +1,14 @@
 """
 Adversarial Mole AI for Zom-Mole Hunter.
 
-Zephyr acts as an adversarial player.
+Zephyr is an adversarial agent.
 
 MINIMAX:
-    Zephyr = MIN
     Detective = MAX
+    Zephyr    = MIN
 
-The AI evaluates possible future game states and chooses
-the action that is most beneficial to Zephyr.
+The AI evaluates possible future states and chooses
+the action that is most favorable to Zephyr.
 """
 
 import random
@@ -36,20 +36,21 @@ class MoleAI:
 
 
     # =========================================================
-    # GAME STATE EXTRACTION
+    # STATE EVALUATION
     # =========================================================
 
-    def _state_value(self, game_state):
+    def _evaluate(self, state):
 
         """
-        Evaluate the current state from Zephyr's perspective.
+        Evaluate a game state from Zephyr's perspective.
 
         Higher score = better for Zephyr.
-        Lower score = better for detective.
+        Lower score = better for the detective.
         """
 
-        if game_state is None:
+        if state is None:
             return 0
+
 
         score = 0
 
@@ -59,13 +60,12 @@ class MoleAI:
         # -----------------------------------------------------
 
         suspicion = getattr(
-            game_state,
+            state,
             "suspicion",
             10
         )
 
-        # High suspicion means the detective is getting
-        # closer to discovering Zephyr.
+        # High suspicion is dangerous for Zephyr.
 
         score -= suspicion * 2
 
@@ -74,98 +74,13 @@ class MoleAI:
         # VISITED ROOMS
         # -----------------------------------------------------
 
-        visited_rooms = getattr(
-            game_state,
+        visited = getattr(
+            state,
             "visited_rooms",
             {}
         )
 
-        # More investigated rooms generally means more
-        # evidence for the detective.
-
-        score -= len(visited_rooms) * 4
-
-
-        # -----------------------------------------------------
-        # CONTRADICTIONS
-        # -----------------------------------------------------
-
-        contradiction_flagged = getattr(
-            game_state,
-            "contradiction_flagged",
-            False
-        )
-
-        if contradiction_flagged:
-            score -= 20
-
-
-        # -----------------------------------------------------
-        # PIN
-        # -----------------------------------------------------
-
-        pin_cracked = getattr(
-            game_state,
-            "pin_cracked",
-            False
-        )
-
-        if pin_cracked:
-            # Detective has gained access to interrogation.
-            score -= 15
-
-
-        # -----------------------------------------------------
-        # SECURITY CHALLENGE
-        # -----------------------------------------------------
-
-        security_active = getattr(
-            game_state,
-            "security_challenge_active",
-            False
-        )
-
-        security_complete = getattr(
-            game_state,
-            "security_challenge_complete",
-            False
-        )
-
-        wordle_failed = getattr(
-            game_state,
-            "wordle_failed",
-            False
-        )
-
-
-        if security_active:
-
-            # Very good for Zephyr.
-            score += 30
-
-        elif security_complete:
-
-            # Detective defeated the obstacle.
-            score -= 15
-
-        elif wordle_failed:
-
-            # Even better for Zephyr because interrogation
-            # access is permanently blocked.
-            score += 35
-
-
-        # -----------------------------------------------------
-        # WORDLE ATTEMPTS
-        # -----------------------------------------------------
-
-        wordle_attempts = getattr(
-            game_state,
-            "wordle_attempts",
-            []
-        )
-
-        score += len(wordle_attempts) * 2
+        score -= len(visited) * 3
 
 
         # -----------------------------------------------------
@@ -173,242 +88,263 @@ class MoleAI:
         # -----------------------------------------------------
 
         asked = getattr(
-            game_state,
+            state,
             "asked",
             {}
         )
 
-        # Every interrogation gives the detective information.
-
-        score -= len(asked) * 5
+        score -= len(asked) * 6
 
 
         # -----------------------------------------------------
-        # ACTIONS USED
+        # CONTRADICTIONS
         # -----------------------------------------------------
 
-        actions_used = getattr(
-            game_state,
+        if getattr(
+            state,
+            "contradiction_flagged",
+            False
+        ):
+
+            score -= 30
+
+
+        # -----------------------------------------------------
+        # PIN
+        # -----------------------------------------------------
+
+        if getattr(
+            state,
+            "pin_cracked",
+            False
+        ):
+
+            # Detective now has interrogation access.
+
+            score -= 10
+
+
+        # -----------------------------------------------------
+        # SECURITY CHALLENGE
+        # -----------------------------------------------------
+
+        security_active = getattr(
+            state,
+            "security_challenge_active",
+            False
+        )
+
+        security_complete = getattr(
+            state,
+            "security_challenge_complete",
+            False
+        )
+
+        wordle_failed = getattr(
+            state,
+            "wordle_failed",
+            False
+        )
+
+
+        if security_active:
+
+            # This is VERY good for Zephyr because
+            # interrogation is currently blocked.
+
+            score += 50
+
+
+        elif wordle_failed:
+
+            # Permanent interrogation lock.
+
+            score += 70
+
+
+        elif security_complete:
+
+            # Detective defeated the security obstacle.
+
+            score -= 20
+
+
+        # -----------------------------------------------------
+        # WORDLE ATTEMPTS
+        # -----------------------------------------------------
+
+        wordle_attempts = getattr(
+            state,
+            "wordle_attempts",
+            []
+        )
+
+        if security_active:
+
+            # Every remaining attempt means the detective
+            # still has to spend effort defeating the lock.
+
+            remaining = (
+                getattr(
+                    state,
+                    "wordle_max_attempts",
+                    6
+                )
+                - len(wordle_attempts)
+            )
+
+            score += remaining * 3
+
+
+        # -----------------------------------------------------
+        # ACTION COUNT
+        # -----------------------------------------------------
+
+        actions = getattr(
+            state,
             "actions_used",
             0
         )
 
-        # More actions means the detective has had more
-        # opportunities to gather evidence.
-
-        score -= actions_used
+        score -= actions
 
 
         return score
 
 
     # =========================================================
-    # SIMULATED STATE
+    # STATE SIMULATION
     # =========================================================
 
-    def _simulate_state(
+    def _simulate(
         self,
-        game_state,
+        state,
         action,
         action_type
     ):
 
         """
-        Create a lightweight simulated copy of the game state.
+        Create a simulated future state.
 
-        We do NOT execute the real game methods because those
-        methods would create actual evidence/log changes.
-
-        Instead we simulate the important strategic effects.
+        The actual GameState is never modified.
         """
 
-        if game_state is None:
+        if state is None:
             return None
 
-        state = copy.deepcopy(game_state)
+
+        new_state = copy.deepcopy(state)
 
 
-        # -----------------------------------------------------
+        # =====================================================
         # STORAGE
-        # -----------------------------------------------------
+        # =====================================================
 
-        if action_type == "room":
+        if action_type == "storage":
 
-            room = action
+            if action == "sabotage":
 
-            if room == "Storage":
+                new_state.suspicion += 3
 
-                if action == "sabotage":
+                new_state.room_decisions[
+                    "Storage"
+                ] = "riddle_sabotage"
 
-                    state.suspicion += 3
+            else:
 
-                    state.room_decisions[
-                        "Storage"
-                    ] = "riddle_sabotage"
-
-                else:
-
-                    state.room_decisions[
-                        "Storage"
-                    ] = "help"
+                new_state.room_decisions[
+                    "Storage"
+                ] = "help"
 
 
-        # -----------------------------------------------------
+        # =====================================================
         # SECURITY
-        # -----------------------------------------------------
+        # =====================================================
 
         elif action_type == "security":
 
             if action == "sabotage":
 
-                state.security_challenge_active = True
+                new_state.security_challenge_active = True
 
-                state.security_challenge_complete = False
+                new_state.security_challenge_complete = False
 
-            else:
+                new_state.wordle_failed = False
 
-                state.security_challenge_active = False
+                # Give Zephyr an immediate advantage.
 
-                state.security_challenge_complete = True
+                new_state.suspicion = max(
+                    0,
+                    new_state.suspicion - 2
+                )
 
 
-        # -----------------------------------------------------
-        # TRUTH / LIE
-        # -----------------------------------------------------
+            elif action == "help":
+
+                new_state.security_challenge_active = False
+
+                new_state.security_challenge_complete = True
+
+                new_state.wordle_failed = False
+
+                # Detective gets immediate interrogation access.
+
+                new_state.suspicion = min(
+                    100,
+                    new_state.suspicion + 3
+                )
+
+
+        # =====================================================
+        # STATEMENT
+        # =====================================================
 
         elif action_type == "statement":
 
             if action == "lie":
 
-                state.suspicion += 8
+                new_state.suspicion += 8
 
             else:
 
-                state.suspicion -= 2
+                new_state.suspicion -= 2
 
 
-        state.suspicion = max(
-            0,
-            min(
-                100,
-                state.suspicion
-            )
-        )
+        # =====================================================
+        # DETECTIVE RESPONSE
+        # =====================================================
 
-        return state
+        elif action_type == "detective":
 
+            if action == "question":
 
-    # =========================================================
-    # DETECTIVE RESPONSE SIMULATION
-    # =========================================================
+                new_state.actions_used += 1
 
-    def _detective_responses(
-        self,
-        state,
-        action_type
-    ):
-
-        """
-        Generate possible detective responses.
-
-        The detective is MAX in the Minimax tree.
-        """
-
-        if state is None:
-            return []
+                new_state.suspicion -= 1
 
 
-        # -----------------------------------------------------
-        # ROOM RESPONSE
-        # -----------------------------------------------------
+            elif action == "suspect":
 
-        if action_type == "room":
+                new_state.actions_used += 1
 
-            return [
-                "investigate_more",
-                "continue"
-            ]
+                new_state.suspicion += 5
+
+
+            elif action == "solve_wordle":
+
+                new_state.actions_used += 1
+
+                # A successful future Wordle solution would
+                # remove Zephyr's security advantage.
+
+                new_state.security_challenge_active = False
+
+                new_state.security_challenge_complete = True
 
 
         # -----------------------------------------------------
-        # SECURITY RESPONSE
+        # CLAMP
         # -----------------------------------------------------
-
-        if action_type == "security":
-
-            return [
-                "attempt_wordle",
-                "continue"
-            ]
-
-
-        # -----------------------------------------------------
-        # STATEMENT RESPONSE
-        # -----------------------------------------------------
-
-        if action_type == "statement":
-
-            return [
-                "trust_statement",
-                "suspect_zephyr"
-            ]
-
-
-        return ["continue"]
-
-
-    # =========================================================
-    # DETECTIVE STATE SIMULATION
-    # =========================================================
-
-    def _simulate_detective_response(
-        self,
-        state,
-        response,
-        action_type
-    ):
-
-        if state is None:
-            return None
-
-        new_state = copy.deepcopy(state)
-
-
-        # -----------------------------------------------------
-        # DETECTIVE INVESTIGATES MORE
-        # -----------------------------------------------------
-
-        if response == "investigate_more":
-
-            new_state.actions_used += 1
-
-
-        # -----------------------------------------------------
-        # DETECTIVE ATTEMPTS WORDLE
-        # -----------------------------------------------------
-
-        elif response == "attempt_wordle":
-
-            new_state.actions_used += 1
-
-
-        # -----------------------------------------------------
-        # DETECTIVE SUSPECTS ZEPHYR
-        # -----------------------------------------------------
-
-        elif response == "suspect_zephyr":
-
-            new_state.suspicion += 5
-
-
-        # -----------------------------------------------------
-        # DETECTIVE TRUSTS STATEMENT
-        # -----------------------------------------------------
-
-        elif response == "trust_statement":
-
-            new_state.suspicion -= 2
-
 
         new_state.suspicion = max(
             0,
@@ -418,7 +354,68 @@ class MoleAI:
             )
         )
 
+
         return new_state
+
+
+    # =========================================================
+    # DETECTIVE RESPONSES
+    # =========================================================
+
+    def _detective_actions(
+        self,
+        state,
+        action_type
+    ):
+
+        """
+        Possible responses by the detective.
+
+        Detective is MAX.
+        """
+
+        if state is None:
+            return []
+
+
+        if action_type == "security":
+
+            if getattr(
+                state,
+                "security_challenge_active",
+                False
+            ):
+
+                return [
+                    "solve_wordle",
+                    "wait"
+                ]
+
+            return [
+                "question",
+                "continue"
+            ]
+
+
+        if action_type == "storage":
+
+            return [
+                "question",
+                "suspect"
+            ]
+
+
+        if action_type == "statement":
+
+            return [
+                "question",
+                "suspect"
+            ]
+
+
+        return [
+            "continue"
+        ]
 
 
     # =========================================================
@@ -429,23 +426,15 @@ class MoleAI:
         self,
         state,
         depth,
-        maximizing
+        maximizing,
+        action_type
     ):
 
         """
         Minimax search.
 
-        maximizing = True
-            Detective tries to maximize its advantage.
-
-        maximizing = False
-            Zephyr tries to minimize detective advantage.
-
-        Our evaluation is from Zephyr's perspective.
-        Therefore:
-
-            Zephyr MIN
-            Detective MAX
+        Detective = MAX
+        Zephyr = MIN
         """
 
         if state is None:
@@ -453,75 +442,49 @@ class MoleAI:
             return 0
 
 
-        if depth == 0:
+        if depth <= 0:
 
-            return self._state_value(state)
+            return self._evaluate(state)
 
 
         # =====================================================
-        # ZEHPYR / MIN
+        # DETECTIVE / MAX
         # =====================================================
 
-        if not maximizing:
+        if maximizing:
 
-            actions = [
-                "sabotage",
-                "help"
-            ]
-
-            best_value = float("inf")
+            responses = self._detective_actions(
+                state,
+                action_type
+            )
 
 
-            for action in actions:
+            if not responses:
 
-                simulated = self._simulate_state(
+                return self._evaluate(state)
+
+
+            best_value = float("-inf")
+
+
+            for response in responses:
+
+                next_state = self._simulate(
                     state,
-                    action,
-                    "room"
+                    response,
+                    "detective"
                 )
 
-                # Detective gets a chance to respond.
-                responses = self._detective_responses(
-                    simulated,
-                    "room"
+
+                value = self._minimax(
+                    next_state,
+                    depth - 1,
+                    False,
+                    action_type
                 )
 
-                if not responses:
 
-                    value = self._minimax(
-                        simulated,
-                        depth - 1,
-                        True
-                    )
-
-                else:
-
-                    values = []
-
-                    for response in responses:
-
-                        response_state = (
-                            self._simulate_detective_response(
-                                simulated,
-                                response,
-                                "room"
-                            )
-                        )
-
-                        values.append(
-                            self._minimax(
-                                response_state,
-                                depth - 1,
-                                False
-                            )
-                        )
-
-                    # Detective chooses the outcome best
-                    # for themselves.
-                    value = max(values)
-
-
-                best_value = min(
+                best_value = max(
                     best_value,
                     value
                 )
@@ -531,32 +494,36 @@ class MoleAI:
 
 
         # =====================================================
-        # DETECTIVE / MAX
+        # ZEPHYR / MIN
         # =====================================================
 
-        responses = self._detective_responses(
-            state,
-            "room"
-        )
-
-        best_value = float("-inf")
+        actions = [
+            "sabotage",
+            "help"
+        ]
 
 
-        for response in responses:
+        best_value = float("inf")
 
-            simulated = (
-                self._simulate_detective_response(
-                    state,
-                    response,
-                    "room"
-                )
+
+        for action in actions:
+
+            next_state = self._simulate(
+                state,
+                action,
+                action_type
             )
 
-            value = self._state_value(
-                simulated
+
+            value = self._minimax(
+                next_state,
+                depth - 1,
+                True,
+                action_type
             )
 
-            best_value = max(
+
+            best_value = min(
                 best_value,
                 value
             )
@@ -566,18 +533,21 @@ class MoleAI:
 
 
     # =========================================================
-    # CHOOSE BETWEEN HELP AND SABOTAGE
+    # SECURITY MINIMAX
     # =========================================================
 
-    def _choose_adversarial_action(
+    def _choose_security_action(
         self,
-        game_state,
-        action_type
+        game_state
     ):
 
         """
-        Search the possible outcomes of each Zephyr action
-        and select the action with the best Minimax value.
+        Decide whether Zephyr should activate the Wordle
+        security challenge.
+
+        This is a dedicated Minimax search because the
+        security decision has a completely different effect
+        from the Storage decision.
         """
 
         if game_state is None:
@@ -589,89 +559,86 @@ class MoleAI:
             )
 
 
-        actions = [
+        # -----------------------------------------------------
+        # SIMULATE WORDLE
+        # -----------------------------------------------------
+
+        sabotage_state = self._simulate(
+            game_state,
             "sabotage",
-            "help"
-        ]
-
-        values = {}
-
-
-        for action in actions:
-
-            simulated = self._simulate_state(
-                game_state,
-                action,
-                action_type
-            )
-
-
-            responses = self._detective_responses(
-                simulated,
-                action_type
-            )
-
-
-            if not responses:
-
-                value = self._minimax(
-                    simulated,
-                    self.search_depth - 1,
-                    True
-                )
-
-            else:
-
-                response_values = []
-
-
-                for response in responses:
-
-                    response_state = (
-                        self._simulate_detective_response(
-                            simulated,
-                            response,
-                            action_type
-                        )
-                    )
-
-                    response_values.append(
-                        self._minimax(
-                            response_state,
-                            self.search_depth - 1,
-                            False
-                        )
-                    )
-
-
-                # Detective chooses their best response.
-                value = max(response_values)
-
-
-            values[action] = value
-
-
-        # Zephyr chooses the MINIMUM value for the detective.
-
-        best_action = min(
-            values,
-            key=values.get
+            "security"
         )
+
+
+        # -----------------------------------------------------
+        # SIMULATE NO WORDLE
+        # -----------------------------------------------------
+
+        help_state = self._simulate(
+            game_state,
+            "help",
+            "security"
+        )
+
+
+        # -----------------------------------------------------
+        # MINIMAX VALUES
+        # -----------------------------------------------------
+
+        sabotage_value = self._minimax(
+            sabotage_state,
+            self.search_depth - 1,
+            True,
+            "security"
+        )
+
+
+        help_value = self._minimax(
+            help_state,
+            self.search_depth - 1,
+            True,
+            "security"
+        )
+
+
+        # -----------------------------------------------------
+        # ZEHPYR CHOOSES THE LOWER VALUE
+        # -----------------------------------------------------
+
+        if sabotage_value < help_value:
+
+            decision = "sabotage"
+
+        elif help_value < sabotage_value:
+
+            decision = "help"
+
+        else:
+
+            # Equal positions.
+            # Use a random tie-break rather than always
+            # choosing the same action.
+
+            decision = (
+                "sabotage"
+                if self.rng.random() < 0.5
+                else "help"
+            )
 
 
         self.decisions_log.append(
-            f"Minimax evaluated {action_type}: "
-            f"sabotage={values['sabotage']:.2f}, "
-            f"help={values['help']:.2f}. "
-            f"Zephyr chose {best_action.upper()}."
+            "MINIMAX SECURITY DECISION: "
+            f"Wordle={sabotage_value:.2f}, "
+            f"No Wordle={help_value:.2f}. "
+            f"Zephyr chose {decision.upper()}."
         )
 
 
-        return best_action
+        return decision
 
 
     # =========================================================
-    # ROOM ACTION
+    # GENERAL HELP / SABOTAGE
     # =========================================================
 
     def decide_help_or_sabotage(
@@ -683,16 +650,27 @@ class MoleAI:
     ):
 
         """
-        General adversarial decision.
+        General Zephyr decision.
 
-        game_state is optional so the method remains compatible
-        with older versions of the game.
+        Uses Minimax when GameState is available.
         """
 
-        decision = self._choose_adversarial_action(
-            game_state,
-            "room"
-        )
+        if game_state is None:
+
+            decision = (
+                "sabotage"
+                if self.rng.random() < 0.5
+                else "help"
+            )
+
+        else:
+
+            # Storage is the primary room where Zephyr
+            # actually has a sabotage choice.
+
+            decision = self._choose_room_action(
+                game_state
+            )
 
 
         if decision == "sabotage":
@@ -712,6 +690,77 @@ class MoleAI:
 
         return decision
 
+
+    # =========================================================
+    # ROOM MINIMAX
+    # =========================================================
+
+    def _choose_room_action(
+        self,
+        game_state
+    ):
+
+        sabotage_state = self._simulate(
+            game_state,
+            "sabotage",
+            "storage"
+        )
+
+
+        help_state = self._simulate(
+            game_state,
+            "help",
+            "storage"
+        )
+
+
+        sabotage_value = self._minimax(
+            sabotage_state,
+            self.search_depth - 1,
+            True,
+            "storage"
+        )
+
+
+        help_value = self._minimax(
+            help_state,
+            self.search_depth - 1,
+            True,
+            "storage"
+        )
+
+
+        if sabotage_value < help_value:
+
+            decision = "sabotage"
+
+        elif help_value < sabotage_value:
+
+            decision = "help"
+
+        else:
+
+            decision = (
+                "sabotage"
+                if self.rng.random() < 0.5
+                else "help"
+            )
+
+
+        self.decisions_log.append(
+            "MINIMAX ROOM DECISION: "
+            f"Sabotage={sabotage_value:.2f}, "
+            f"Help={help_value:.2f}. "
+            f"Zephyr chose {decision.upper()}."
+        )
+
+
+        return decision
+
+
+    # =========================================================
+    # ROOM ACTION
+    # =========================================================
 
     def decide_room_action(
         self,
@@ -769,7 +818,7 @@ class MoleAI:
 
 
     # =========================================================
-    # SECURITY SABOTAGE
+    # SECURITY / WORDLE
     # =========================================================
 
     def decide_security_sabotage(
@@ -779,9 +828,8 @@ class MoleAI:
         game_state=None
     ):
 
-        decision = self._choose_adversarial_action(
-            game_state,
-            "security"
+        decision = self._choose_security_action(
+            game_state
         )
 
 
@@ -792,8 +840,8 @@ class MoleAI:
             self.sabotage_count += 1
 
             self.decisions_log.append(
-                "Zephyr used Minimax to activate "
-                "the secondary security challenge."
+                "🚨 Zephyr chose to activate "
+                "the SECONDARY WORDLE SECURITY CHALLENGE."
             )
 
             return True
@@ -804,8 +852,8 @@ class MoleAI:
         self.help_count += 1
 
         self.decisions_log.append(
-            "Zephyr used Minimax to leave "
-            "interrogation access unlocked."
+            "🔓 Zephyr chose to leave "
+            "interrogation unlocked."
         )
 
         return False
@@ -840,32 +888,26 @@ class MoleAI:
     ):
 
         """
-        Decide whether Zephyr should lie.
-
-        The AI compares:
-
-            LIE
-            TRUTH
-
-        using the current game state.
+        Minimax decision between telling the truth
+        and lying.
         """
 
         if game_state is None:
 
-            # Compatibility fallback.
             tell_truth = (
                 self.rng.random() < 0.5
             )
 
         else:
 
-            truth_state = self._simulate_state(
+            truth_state = self._simulate(
                 game_state,
                 "truth",
                 "statement"
             )
 
-            lie_state = self._simulate_state(
+
+            lie_state = self._simulate(
                 game_state,
                 "lie",
                 "statement"
@@ -875,18 +917,18 @@ class MoleAI:
             truth_value = self._minimax(
                 truth_state,
                 self.search_depth - 1,
-                True
+                True,
+                "statement"
             )
+
 
             lie_value = self._minimax(
                 lie_state,
                 self.search_depth - 1,
-                True
+                True,
+                "statement"
             )
 
-
-            # Zephyr chooses the action that produces the
-            # lowest score for the detective.
 
             if lie_value < truth_value:
 
@@ -904,9 +946,9 @@ class MoleAI:
 
 
             self.decisions_log.append(
-                f"Minimax evaluated statement: "
-                f"truth={truth_value:.2f}, "
-                f"lie={lie_value:.2f}. "
+                "MINIMAX STATEMENT DECISION: "
+                f"Truth={truth_value:.2f}, "
+                f"Lie={lie_value:.2f}. "
                 f"Zephyr chose "
                 f"{'TRUTH' if tell_truth else 'LIE'}."
             )
@@ -925,7 +967,7 @@ class MoleAI:
 
 
     # =========================================================
-    # STATISTICS
+    # STATS
     # =========================================================
 
     def stats(self):
